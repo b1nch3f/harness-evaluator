@@ -25,14 +25,14 @@ from google.adk.runners import InMemoryRunner
 from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 
-from skills_builder import data
-from skills_builder.model import ModelSettings, agent_settings, build_model, judge_settings, user_settings
-from skills_builder.experiment import Experiment
-from skills_builder.prompts import user_prompt
-from skills_builder.retail.models import RetailDB
-from skills_builder.retail.runtime import result_text, to_plain
-from skills_builder.retail.scorer import JudgeError, score_episode
-from skills_builder.retail.tools import TOOL_NAMES, RetailTools
+from harness_builder import data
+from harness_builder.model import ModelSettings, agent_settings, build_model, judge_settings, user_settings
+from harness_builder.experiment import Experiment
+from harness_builder.prompts import user_prompt
+from harness_builder.retail.models import RetailDB
+from harness_builder.retail.runtime import result_text, to_plain
+from harness_builder.retail.scorer import JudgeError, score_episode
+from harness_builder.retail.tools import TOOL_NAMES, RetailTools
 
 GREETING = "Hi! How can I help you today?"
 STOP_TOKENS = ("###STOP###", "###TRANSFER###", "###OUT-OF-SCOPE###")
@@ -40,7 +40,7 @@ MAX_TOOL_ERRORS = 10
 AGENT_NAME = "retail_agent"
 USER_NAME = "customer"
 JUDGE_NAME = "judge"
-APP_NAME = "skills_builder"
+APP_NAME = "harness_builder"
 
 
 class InfraError(RuntimeError):

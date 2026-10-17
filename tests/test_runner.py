@@ -7,10 +7,10 @@ from dataclasses import replace
 import pytest
 from scripted import Scripted, call, text
 
-from skills_builder import data, metrics
-from skills_builder.experiment import load_experiment
-from skills_builder.retail.episode import EpisodeSpec, InfraError
-from skills_builder.runner import RunRefused, RunSettings, halves, load_runs, run_eval, select_tasks
+from harness_builder import data, metrics
+from harness_builder.experiment import load_experiment
+from harness_builder.retail.episode import EpisodeSpec, InfraError
+from harness_builder.runner import RunRefused, RunSettings, halves, load_runs, run_eval, select_tasks
 
 NO_JUDGE_TRAIN = [t["id"] for t in data.tasks()
                   if t["id"] in data.splits()["train"] and not t["evaluation_criteria"].get("nl_assertions")][:2]

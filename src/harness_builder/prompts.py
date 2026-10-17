@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from skills_builder import data
+from harness_builder import data
 
 
 def user_scenario_text(task: dict) -> str:

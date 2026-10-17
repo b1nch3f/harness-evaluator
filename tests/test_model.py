@@ -1,4 +1,4 @@
-from skills_builder.model import ModelSettings, completion_kwargs, endpoint_label
+from harness_builder.model import ModelSettings, completion_kwargs, endpoint_label
 
 S = ModelSettings(
     model="openai/openai/gpt-oss-120b",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from skills_builder.config import load_env
+from harness_builder.config import load_env
 
 load_env()
 
@@ -28,7 +28,7 @@ def info() -> None:
 @app.command()
 def labels() -> None:
     """Write data/labels/retail.json and print label counts per split."""
-    from skills_builder.labels import LABELS_PATH, label_counts, write_labels
+    from harness_builder.labels import LABELS_PATH, label_counts, write_labels
 
     rows = write_labels()
     typer.echo(f"wrote {LABELS_PATH.relative_to(LABELS_PATH.parents[2])} ({len(rows)} tasks)")
@@ -40,7 +40,7 @@ def labels() -> None:
 @app.command()
 def ping() -> None:
     """Send one chat and one tool-call request to the agent model."""
-    from skills_builder.ping import main as run_ping
+    from harness_builder.ping import main as run_ping
 
     if not run_ping():
         raise typer.Exit(1)
@@ -49,7 +49,7 @@ def ping() -> None:
 @app.command()
 def experiments() -> None:
     """List the experiments under experiments/ and their versions."""
-    from skills_builder.experiment import list_experiments, load_experiment
+    from harness_builder.experiment import list_experiments, load_experiment
 
     for name in list_experiments():
         e = load_experiment(name)
@@ -77,9 +77,9 @@ def eval_(
                                           "Uses that run's own settings; other flags are ignored."),
 ) -> None:
     """Run an experiment and evaluate it. Results go to experiments/<name>/runs/<run_id>/."""
-    from skills_builder.config import REPO_ROOT
-    from skills_builder.experiment import load_experiment
-    from skills_builder.runner import RunRefused, RunSettings, run_eval
+    from harness_builder.config import REPO_ROOT
+    from harness_builder.experiment import load_experiment
+    from harness_builder.runner import RunRefused, RunSettings, run_eval
 
     task_sel = tasks if tasks == "all" or tasks.startswith("half:") else tuple(t.strip() for t in tasks.split(","))
     try:
@@ -103,7 +103,7 @@ def eval_(
 @app.command()
 def results(experiment: str = typer.Option(None, help="only this experiment")) -> None:
     """Show every completed run (experiments/*/runs/*/results.json), oldest first."""
-    from skills_builder.runner import load_runs
+    from harness_builder.runner import load_runs
 
     runs = load_runs(experiment=experiment)
     if not runs:
@@ -130,10 +130,10 @@ def episode(
     """Run one conversation and print its score. The log goes to experiments/<name>/runs/episodes/."""
     import json
 
-    from skills_builder import data, transcript
-    from skills_builder.config import REPO_ROOT
-    from skills_builder.experiment import load_experiment
-    from skills_builder.retail.episode import default_spec, run_episode
+    from harness_builder import data, transcript
+    from harness_builder.config import REPO_ROOT
+    from harness_builder.experiment import load_experiment
+    from harness_builder.retail.episode import default_spec, run_episode
 
     if task_id in data.splits()["test"]:
         typer.echo("refusing: that is a test-split task (CLAUDE.md rule 1)")

@@ -6,7 +6,7 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 
 ## M1. Project skeleton (done)
 
-- `uv` package `skills_builder`, `src/` layout, Python 3.12 (τ² imports `audioop`, removed in 3.13).
+- `uv` package `harness_builder`, `src/` layout, Python 3.12 (τ² imports `audioop`, removed in 3.13).
 - Pinned: `google-adk==2.12.0`, `litellm==1.82.6`, `wandb==0.28.1`, `python-dotenv`, `pydantic`, `typer`, `pytest` (dev). `tau2` (git, pinned commit) is a **dev** dependency, used only by tests. Notes: litellm is held below 1.82.7 by tau2; newer wandb conflicts with ADK's opentelemetry pin.
 - τ²-bench is a git submodule at `third_party/tau2-bench`, pinned to the commit above, for its data files.
 - `.env` loaded at startup; CLI entry point `uv run sb ...`.
@@ -30,7 +30,7 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 
 ## M4. ADK-native retail harness (done)
 
-### Environment (`skills_builder/retail/`)
+### Environment (`harness_builder/retail/`)
 
 - **Database:** pydantic models for products, variants, users, addresses, payment methods (credit card, PayPal, gift card), orders, order items, payments, fulfillments, matching τ²'s `tau2/domains/retail/data_model.py`. Loaded fresh from `db.json` for every episode.
 - **Tools:** the 16 retail tools (`calculate`, `cancel_pending_order`, `exchange_delivered_order_items`, `find_user_id_by_name_zip`, `find_user_id_by_email`, `get_order_details`, `get_product_details`, `get_item_details`, `get_user_details`, `list_all_product_types`, `modify_pending_order_address`, `modify_pending_order_items`, `modify_pending_order_payment`, `modify_user_address`, `return_delivered_order_items`, `transfer_to_human_agents`) as ADK `FunctionTool`s bound to the episode's database. Same names, arguments, descriptions, checks and state changes as τ²'s `tau2/domains/retail/tools.py`, **including its quirks** (for example, `modify_pending_order_items` gives every modified item the price and options of the last new item), because expected actions are replayed with the same logic.

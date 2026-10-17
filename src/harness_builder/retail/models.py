@@ -129,7 +129,7 @@ class RetailDB(_Model):
 
     @classmethod
     def fresh(cls) -> "RetailDB":
-        from skills_builder import data
+        from harness_builder import data
 
         return cls.model_validate(data.db_json())
 

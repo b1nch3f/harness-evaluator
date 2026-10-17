@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from skills_builder import data
-from skills_builder.config import REPO_ROOT
+from harness_builder import data
+from harness_builder.config import REPO_ROOT
 
 LABELS_PATH = REPO_ROOT / "data" / "labels" / "retail.json"
 

@@ -6,10 +6,10 @@ import shutil
 import pytest
 from scripted import Scripted, call, text
 
-from skills_builder.experiment import load_experiment
-from skills_builder.prompts import user_prompt
-from skills_builder.retail import episode as ep
-from skills_builder import data
+from harness_builder.experiment import load_experiment
+from harness_builder.prompts import user_prompt
+from harness_builder.retail import episode as ep
+from harness_builder import data
 
 FIXTURE_SKILLS = Path(__file__).parent / "fixtures" / "skills"
 TASK_ID = "0"  # train: Yusuf Rossi, zip 19122, exchange in order #W2378156

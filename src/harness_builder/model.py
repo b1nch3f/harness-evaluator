@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
 
-from skills_builder.config import env
+from harness_builder.config import env
 
 REASONING_EFFORTS = ("low", "medium", "high")
 REQUEST_TIMEOUT_S = 600

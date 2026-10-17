@@ -4,10 +4,10 @@ import json
 
 import pytest
 
-from skills_builder import data
-from skills_builder.retail.models import RetailDB
-from skills_builder.retail.tools import TOOL_NAMES, RetailTools
-from skills_builder.retail.runtime import result_text
+from harness_builder import data
+from harness_builder.retail.models import RetailDB
+from harness_builder.retail.tools import TOOL_NAMES, RetailTools
+from harness_builder.retail.runtime import result_text
 
 
 def _tau2_env():
@@ -78,7 +78,7 @@ def _first(pred):
 
 def test_rule_violations_match_tau2():
     """Calls the policy forbids must fail the same way in both."""
-    from skills_builder.retail.models import GiftCard
+    from harness_builder.retail.models import GiftCard
 
     delivered = _first(lambda o, db: o.status == "delivered")
     pending = _first(lambda o, db: o.status == "pending")

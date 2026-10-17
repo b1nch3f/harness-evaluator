@@ -18,8 +18,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from skills_builder import data
-from skills_builder.config import REPO_ROOT
+from harness_builder import data
+from harness_builder.config import REPO_ROOT
 
 EXPERIMENTS_DIR = REPO_ROOT / "experiments"
 PROMPT_FILE = "system_prompt.md"

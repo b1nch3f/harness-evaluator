@@ -1,5 +1,5 @@
 [project]
-name = "skills-builder"
+name = "harness-builder"
 version = "0.1.0"
 description = "Measure how agent skills improve gpt-oss-120b on tau2-bench retail"
 readme = "README.md"
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-sb = "skills_builder.cli:app"
+sb = "harness_builder.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.12.13,<0.13.0"]

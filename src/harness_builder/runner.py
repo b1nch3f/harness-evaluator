@@ -26,12 +26,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from skills_builder import data, metrics, transcript
-from skills_builder.config import REPO_ROOT, TAU2_COMMIT
-from skills_builder.experiment import EXPERIMENTS_DIR, Experiment
-from skills_builder.labels import load_labels
-from skills_builder.model import ModelSettings, agent_settings, judge_settings, user_settings
-from skills_builder.retail.episode import EpisodeLog, EpisodeSpec, run_episode
+from harness_builder import data, metrics, transcript
+from harness_builder.config import REPO_ROOT, TAU2_COMMIT
+from harness_builder.experiment import EXPERIMENTS_DIR, Experiment
+from harness_builder.labels import load_labels
+from harness_builder.model import ModelSettings, agent_settings, judge_settings, user_settings
+from harness_builder.retail.episode import EpisodeLog, EpisodeSpec, run_episode
 
 RUNS_DIR = "runs"
 RESULTS_FILE = "results.json"

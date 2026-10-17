@@ -1,6 +1,6 @@
 from math import comb
 
-from skills_builder import metrics
+from harness_builder import metrics
 
 
 def test_pass_k_formulas():

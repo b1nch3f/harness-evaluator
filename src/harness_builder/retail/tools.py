@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import List
 
-from skills_builder.retail.models import (
+from harness_builder.retail.models import (
     GiftCard,
     Order,
     OrderPayment,

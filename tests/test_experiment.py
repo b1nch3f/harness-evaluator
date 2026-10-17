@@ -1,7 +1,7 @@
 """Experiment folders: prompt, optional skills, and their runs."""
 
-from skills_builder import data
-from skills_builder.experiment import list_experiments, load_experiment
+from harness_builder import data
+from harness_builder.experiment import list_experiments, load_experiment
 
 
 def test_the_four_experiments_exist():

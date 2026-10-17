@@ -11,8 +11,8 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Awaitable, Callable
 
-from skills_builder.retail.models import RetailDB
-from skills_builder.retail.tools import RetailTools
+from harness_builder.retail.models import RetailDB
+from harness_builder.retail.tools import RetailTools
 
 SCORED_TERMINATIONS = ("user_stop", "agent_stop")
 

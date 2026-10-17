@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 
-from skills_builder.config import TAU2_REPO_DIR
+from harness_builder.config import TAU2_REPO_DIR
 
 DATA_DIR = TAU2_REPO_DIR / "data" / "tau2"
 RETAIL_DIR = DATA_DIR / "domains" / "retail"
