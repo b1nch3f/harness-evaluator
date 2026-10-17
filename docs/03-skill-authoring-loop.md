@@ -1,25 +1,25 @@
 # Harness tuning loop
 
-A harness is an experiment folder's `system_prompt.md` plus its `skills/`. Tuning means editing them on train and keeping only edits that help. Skills are written by a separate author (a Claude session); prompt edits follow the same loop.
+A harness is a folder in `harnesses/`: its `system_prompt.md` plus its `skills/`. Tuning means editing them on train and keeping only edits that help. Skills are written by a separate author (a Claude session); prompt edits follow the same loop.
 
 ## Where things are
 
-- Harnesses: `experiments/<name>/` (committed).
-- Results: `experiments/<name>/runs/<run_id>/` (git-ignored, on the owner's machine). Each run has `results.json`, `summary.md` and, for train tasks, `conversations/<task>_t<trial>.md`: the full conversation, tool calls and results, skills loaded, the customer's goal, the expected actions and the score breakdown.
+- Harnesses: `harnesses/<name>/` (committed).
+- Results: `harnesses/<name>/runs/<run_id>/` (git-ignored, on the owner's machine). Each run has `results.json`, `summary.md` and, for train tasks, `conversations/<task>_t<trial>.md`: the full conversation, tool calls and results, skills loaded, the customer's goal, the expected actions and the score breakdown.
 - Because results are local, an author without access to the owner's machine gets the failure transcripts from the owner.
 
 ## One iteration
 
-1. **Owner:** runs `sb eval <experiment> --tasks half:authoring` and `--tasks half:scoring` with the iteration's `--seed`.
+1. **Owner:** runs `sb eval <harness> --tasks half:authoring` and `--tasks half:scoring` with the iteration's `--seed`.
 2. **Author:** reads `summary.md` and the failed transcripts from the **authoring half only**, picks one intent to work on (normally the weakest by pass^4) and states a hypothesis.
 3. **Author:** edits one skill (or a small related set, or the prompt) and commits with a message naming the target intent and the hypothesis.
 4. **Owner:** runs the scoring half for the new version.
-5. **Accept or reject** (rule in the protocol). An accepted version is tagged `<experiment>-vN`. A rejected one is reverted; its run stays in the experiment's `runs/`.
+5. **Accept or reject** (rule in the protocol). An accepted version is tagged `<harness>-vN`. A rejected one is reverted; its run stays in the harness's `runs/`.
 
 ## Skill layout
 
 ```
-experiments/<skills|domain-skills>/skills/
+harnesses/<skills|domain-skills>/skills/
   authenticate-user/SKILL.md
   cancel-pending-order/SKILL.md
   modify-pending-order-items/SKILL.md
@@ -41,7 +41,7 @@ Each `SKILL.md` has YAML frontmatter (`name`, `description` saying when to use i
 
 Keep each `SKILL.md` under 300 lines; move detail into `references/`.
 
-## The two skill experiments
+## The two skill harnesses
 
 - **`domain-skills`:** the full policy stays in the system prompt; skills add procedure, ordering, checks and edge cases the policy leaves implicit. Don't copy the policy into skills.
 - **`skills`:** no policy in the prompt, so each skill carries the policy rules for its own intent; the agent sees them only after loading the skill. The prompt may gain a few cross-cutting rules (authenticate first, explicit confirmation before any change, one user per conversation, no invented information, when to transfer).

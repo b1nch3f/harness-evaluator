@@ -634,7 +634,7 @@ wheels = [
 ]
 
 [[package]]
-name = "harness-builder"
+name = "harness-evaluator"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

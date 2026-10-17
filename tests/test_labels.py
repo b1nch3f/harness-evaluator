@@ -1,7 +1,7 @@
 import subprocess
 
-from harness_builder.config import TAU2_COMMIT, TAU2_REPO_DIR
-from harness_builder.labels import label_counts, load_labels
+from test_bench.config import TAU2_COMMIT, TAU2_REPO_DIR
+from test_bench.labels import label_counts, load_labels
 
 EXPECTED_TRAIN = {
     "modify_items": 20, "return": 23, "exchange": 19, "cancel": 13,
@@ -30,6 +30,6 @@ def test_train_label_counts():
 
 
 def test_committed_labels_match_tau2():
-    from harness_builder.labels import build_labels
+    from test_bench.labels import build_labels
 
     assert build_labels() == load_labels()

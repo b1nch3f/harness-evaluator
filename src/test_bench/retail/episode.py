@@ -25,14 +25,14 @@ from google.adk.runners import InMemoryRunner
 from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 
-from harness_builder import data
-from harness_builder.model import ModelSettings, agent_settings, build_model, judge_settings, user_settings
-from harness_builder.experiment import Experiment
-from harness_builder.prompts import user_prompt
-from harness_builder.retail.models import RetailDB
-from harness_builder.retail.runtime import result_text, to_plain
-from harness_builder.retail.scorer import JudgeError, score_episode
-from harness_builder.retail.tools import TOOL_NAMES, RetailTools
+from test_bench import data
+from test_bench.model import ModelSettings, agent_settings, build_model, judge_settings, user_settings
+from test_bench.harness import Harness
+from test_bench.prompts import user_prompt
+from test_bench.retail.models import RetailDB
+from test_bench.retail.runtime import result_text, to_plain
+from test_bench.retail.scorer import JudgeError, score_episode
+from test_bench.retail.tools import TOOL_NAMES, RetailTools
 
 GREETING = "Hi! How can I help you today?"
 STOP_TOKENS = ("###STOP###", "###TRANSFER###", "###OUT-OF-SCOPE###")
@@ -40,7 +40,7 @@ MAX_TOOL_ERRORS = 10
 AGENT_NAME = "retail_agent"
 USER_NAME = "customer"
 JUDGE_NAME = "judge"
-APP_NAME = "harness_builder"
+APP_NAME = "test_bench"
 
 
 class InfraError(RuntimeError):
@@ -102,7 +102,7 @@ async def _run_turn(runner: InMemoryRunner, session_id: str, text: str, abort: a
 @dataclass
 class EpisodeLog:
     task_id: str
-    experiment: str
+    harness: str
     trial: int = 0
     reward: float = 0.0
     termination_reason: str = ""
@@ -212,7 +212,7 @@ def _usage_recorder(bucket: dict):
 @dataclass
 class EpisodeSpec:
     task_id: str
-    experiment: Experiment
+    harness: Harness
     trial: int = 0
     max_steps: int = 100
     agent: ModelSettings | None = None
@@ -235,11 +235,11 @@ def _skill_toolset(skills_dir: Path):
 
 async def run_episode_async(spec: EpisodeSpec) -> EpisodeLog:
     task = data.tasks_by_id()[spec.task_id]
-    exp = spec.experiment
+    exp = spec.harness
     if exp.skills_dir is not None and not exp.skill_names:
-        raise ValueError(f"experiment {exp.name!r} has a skills folder with no skills in it yet")
+        raise ValueError(f"harness {exp.name!r} has a skills folder with no skills in it yet")
 
-    log = EpisodeLog(task_id=spec.task_id, experiment=exp.name, trial=spec.trial)
+    log = EpisodeLog(task_id=spec.task_id, harness=exp.name, trial=spec.trial)
     ep = _Episode(task, spec.max_steps, log)
     t0 = time.time()
 
@@ -342,8 +342,8 @@ def run_episode(spec: EpisodeSpec) -> EpisodeLog:
     return asyncio.run(run_episode_async(spec))
 
 
-def default_spec(task_id: str, experiment: Experiment, trial: int = 0, agent_profile: str = "AGENT",
+def default_spec(task_id: str, harness: Harness, trial: int = 0, agent_profile: str = "AGENT",
                  max_steps: int = 100) -> EpisodeSpec:
     """A spec with the agent from a .env profile and the user and judge from .env."""
-    return EpisodeSpec(task_id=task_id, experiment=experiment, trial=trial, max_steps=max_steps,
+    return EpisodeSpec(task_id=task_id, harness=harness, trial=trial, max_steps=max_steps,
                        agent=agent_settings(agent_profile))

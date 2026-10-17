@@ -1,6 +1,6 @@
 """Intent labels, width and depth for tau2 retail tasks.
 
-Definitions are in docs/01-experiment-protocol.md:
+Definitions are in docs/01-harness-protocol.md:
 - one label per expected write action type, plus `transfer` and `answer`
 - width = number of distinct write intents (tau2 ToolType.WRITE tools)
 - depth = number of expected actions (reads and writes)
@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from harness_builder import data
-from harness_builder.config import REPO_ROOT
+from test_bench import data
+from test_bench.config import REPO_ROOT
 
 LABELS_PATH = REPO_ROOT / "data" / "labels" / "retail.json"
 

@@ -1,8 +1,8 @@
-"""The simulated user's system prompt (tau2's layout). Agent prompts live in experiments/."""
+"""The simulated user's system prompt (tau2's layout). Agent prompts live in harnesses/."""
 
 from __future__ import annotations
 
-from harness_builder import data
+from test_bench import data
 
 
 def user_scenario_text(task: dict) -> str:

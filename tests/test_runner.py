@@ -7,10 +7,10 @@ from dataclasses import replace
 import pytest
 from scripted import Scripted, call, text
 
-from harness_builder import data, metrics
-from harness_builder.experiment import load_experiment
-from harness_builder.retail.episode import EpisodeSpec, InfraError
-from harness_builder.runner import RunRefused, RunSettings, halves, load_runs, run_eval, select_tasks
+from test_bench import data, metrics
+from test_bench.harness import load_harness
+from test_bench.retail.episode import EpisodeSpec, InfraError
+from test_bench.runner import RunRefused, RunSettings, halves, load_runs, run_eval, select_tasks
 
 NO_JUDGE_TRAIN = [t["id"] for t in data.tasks()
                   if t["id"] in data.splits()["train"] and not t["evaluation_criteria"].get("nl_assertions")][:2]
@@ -26,18 +26,18 @@ def scripted_spec(exp, succeed_on=lambda tid, trial: trial == 0):
         actions = task["evaluation_criteria"]["actions"] if succeed_on(tid, trial) else []
         agent = Scripted([[call(a["name"], **a["arguments"])] for a in actions] + [[text("Done.")]])
         user = Scripted([[text("Hi, I need help.")], [text("Thanks. ###STOP###")]])
-        return EpisodeSpec(task_id=tid, experiment=exp, trial=trial,
+        return EpisodeSpec(task_id=tid, harness=exp, trial=trial,
                            agent_model=agent, user_model=user, judge_model=Scripted([]))
     return make
 
 
 @pytest.fixture
 def exp(tmp_path):
-    """A committed-looking copy of the domain experiment in a temporary experiments/ root."""
+    """A committed-looking copy of the domain harness in a temporary harnesses/ root."""
     folder = tmp_path / "domain"
     folder.mkdir()
-    shutil.copy(load_experiment("domain").dir / "system_prompt.md", folder / "system_prompt.md")
-    return replace(load_experiment("domain", root=tmp_path), dirty=False)
+    shutil.copy(load_harness("domain").dir / "system_prompt.md", folder / "system_prompt.md")
+    return replace(load_harness("domain", root=tmp_path), dirty=False)
 
 
 def test_run_writes_a_self_contained_run_folder(exp):
@@ -48,10 +48,10 @@ def test_run_writes_a_self_contained_run_folder(exp):
     # results.json in the run folder holds settings, scores and per-task rewards.
     saved = json.loads((run_dir / "results.json").read_text())
     assert saved == json.loads(json.dumps(record))
-    for key in ("experiment", "scaffolding", "settings", "models", "task_ids", "tau2_data_commit"):
+    for key in ("harness", "scaffolding", "settings", "models", "task_ids", "tau2_data_commit"):
         assert key in saved
     assert saved["settings"]["trials"] == 2 and saved["settings"]["concurrency"] == 1
-    assert saved["experiment"]["prompt_sha256"] == exp.prompt_sha256
+    assert saved["harness"]["prompt_sha256"] == exp.prompt_sha256
     for tid in NO_JUDGE_TRAIN:
         assert saved["per_task"][tid]["trials"] == 2 and saved["per_task"][tid]["rewards"][0] == 1.0
 
@@ -68,8 +68,8 @@ def test_run_writes_a_self_contained_run_folder(exp):
     assert "**customer:**" in md and "**agent calls**" in md and "Expected actions" in md
     assert (run_dir / "summary.md").read_text().startswith(f"# domain / {record['run_id']}")
 
-    # Runs don't change the experiment's version; they can be listed back.
-    assert load_experiment("domain", root=exp.dir.parent).version == exp.version
+    # Runs don't change the harness's version; they can be listed back.
+    assert load_harness("domain", root=exp.dir.parent).version == exp.version
     assert [r["run_id"] for r in load_runs(exp.dir.parent)] == [record["run_id"]]
 
 
@@ -117,10 +117,10 @@ def test_parallel_runs_give_the_same_result(exp):
     assert record["settings"]["concurrency"] == 3 and record["episodes"]["completed"] == 4
 
 
-def test_refuses_dirty_experiments_and_empty_skills(exp):
+def test_refuses_dirty_harnesses_and_empty_skills(exp):
     with pytest.raises(RunRefused, match="uncommitted"):
         run_eval(replace(exp, dirty=True), make_spec=scripted_spec(exp), **QUIET)
-    skills = replace(load_experiment("skills"), dirty=False)
+    skills = replace(load_harness("skills"), dirty=False)
     with pytest.raises(RunRefused, match="no skills"):
         run_eval(skills, make_spec=scripted_spec(skills), **QUIET)
 
@@ -181,7 +181,7 @@ def test_resume_refuses_a_changed_harness(exp):
 
     first = run_eval(exp, RunSettings(trials=4, tasks=tuple(NO_JUDGE_TRAIN)), make_spec=down, **QUIET)
     (exp.dir / "system_prompt.md").write_text("Something else.\n")
-    changed = replace(load_experiment("domain", root=exp.dir.parent), dirty=False)
+    changed = replace(load_harness("domain", root=exp.dir.parent), dirty=False)
     with pytest.raises(RunRefused, match="changed since"):
         run_eval(changed, resume=first["run_id"], make_spec=scripted_spec(changed), **QUIET)
     with pytest.raises(RunRefused, match="no run"):

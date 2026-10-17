@@ -1,4 +1,4 @@
-"""Scoring, following tau2's rules for retail (see docs/01-experiment-protocol.md).
+"""Scoring, following tau2's rules for retail (see docs/01-harness-protocol.md).
 
 reward = 0 unless the conversation ended normally (user or agent stop);
 otherwise reward = database check x assertion check.
@@ -11,8 +11,8 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Awaitable, Callable
 
-from harness_builder.retail.models import RetailDB
-from harness_builder.retail.tools import RetailTools
+from test_bench.retail.models import RetailDB
+from test_bench.retail.tools import RetailTools
 
 SCORED_TERMINATIONS = ("user_stop", "agent_stop")
 

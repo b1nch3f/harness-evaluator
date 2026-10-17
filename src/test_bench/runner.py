@@ -1,14 +1,14 @@
-"""Run one experiment and evaluate it: `uv run sb eval <experiment> [flags]`.
+"""Run one harness and evaluate it: `uv run sb eval <harness> [flags]`.
 
 Run settings are flags (see RunSettings). Conversations run one at a time
-unless concurrency > 1. Each run is self-contained in the experiment's
+unless concurrency > 1. Each run is self-contained in the harness's
 folder (git-ignored):
 
-    experiments/<name>/runs/<run_id>/results.json   settings, scores and per-task rewards
-    experiments/<name>/runs/<run_id>/summary.md     the same, readable
-    experiments/<name>/runs/<run_id>/episodes.jsonl progress: one line per finished episode (for --resume)
-    experiments/<name>/runs/<run_id>/conversations/<task>_t<n>.json   full log (train tasks only)
-    experiments/<name>/runs/<run_id>/conversations/<task>_t<n>.md     the same, readable
+    harnesses/<name>/runs/<run_id>/results.json   settings, scores and per-task rewards
+    harnesses/<name>/runs/<run_id>/summary.md     the same, readable
+    harnesses/<name>/runs/<run_id>/episodes.jsonl progress: one line per finished episode (for --resume)
+    harnesses/<name>/runs/<run_id>/conversations/<task>_t<n>.json   full log (train tasks only)
+    harnesses/<name>/runs/<run_id>/conversations/<task>_t<n>.md     the same, readable
 """
 
 from __future__ import annotations
@@ -26,12 +26,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from harness_builder import data, metrics, transcript
-from harness_builder.config import REPO_ROOT, TAU2_COMMIT
-from harness_builder.experiment import EXPERIMENTS_DIR, Experiment
-from harness_builder.labels import load_labels
-from harness_builder.model import ModelSettings, agent_settings, judge_settings, user_settings
-from harness_builder.retail.episode import EpisodeLog, EpisodeSpec, run_episode
+from test_bench import data, metrics, transcript
+from test_bench.config import REPO_ROOT, TAU2_COMMIT
+from test_bench.harness import HARNESSES_DIR, Harness
+from test_bench.labels import load_labels
+from test_bench.model import ModelSettings, agent_settings, judge_settings, user_settings
+from test_bench.retail.episode import EpisodeLog, EpisodeSpec, run_episode
 
 RUNS_DIR = "runs"
 RESULTS_FILE = "results.json"
@@ -47,7 +47,7 @@ class RunRefused(RuntimeError):
 
 @dataclass(frozen=True)
 class RunSettings:
-    """Everything that varies between runs of one experiment (the `sb eval` flags)."""
+    """Everything that varies between runs of one harness (the `sb eval` flags)."""
 
     agent: str = "AGENT"  # .env profile: <AGENT>_MODEL, <AGENT>_API_BASE, <AGENT>_API_KEY
     model: str | None = None  # overrides <AGENT>_MODEL
@@ -109,9 +109,9 @@ def select_tasks(split: str, tasks, seed: int | None, final: bool) -> list[str]:
 # --- reading runs back ---------------------------------------------------------
 
 
-def load_runs(root: Path = EXPERIMENTS_DIR, experiment: str | None = None, complete_only: bool = True) -> list[dict]:
-    """Every run's results.json under experiments/*/runs/, oldest first."""
-    pattern = f"{experiment or '*'}/{RUNS_DIR}/*/{RESULTS_FILE}"
+def load_runs(root: Path = HARNESSES_DIR, harness: str | None = None, complete_only: bool = True) -> list[dict]:
+    """Every run's results.json under harnesses/*/runs/, oldest first."""
+    pattern = f"{harness or '*'}/{RUNS_DIR}/*/{RESULTS_FILE}"
     runs = [json.loads(p.read_text()) for p in root.glob(pattern)]
     if complete_only:
         runs = [r for r in runs if r.get("status") == "complete"]
@@ -166,18 +166,18 @@ def run_with_retries(make_spec: Callable[[str, int], EpisodeSpec], task_id: str,
 EPISODES_FILE = "episodes.jsonl"  # one line per finished episode (no conversation text)
 
 
-def find_run(exp: Experiment, run_id: str) -> Path:
-    """A run folder of this experiment; `last` = the newest run that did not complete."""
+def find_run(exp: Harness, run_id: str) -> Path:
+    """A run folder of this harness; `last` = the newest run that did not complete."""
     runs = exp.dir / RUNS_DIR
     if run_id == "last":
         open_runs = [p.parent for p in runs.glob(f"*/{RESULTS_FILE}")
                      if json.loads(p.read_text()).get("status") != "complete"]
         if not open_runs:
-            raise RunRefused(f"experiments/{exp.name} has no unfinished run to resume")
+            raise RunRefused(f"harnesses/{exp.name} has no unfinished run to resume")
         return max(open_runs, key=lambda p: p.name)
     path = runs / run_id
     if not (path / RESULTS_FILE).is_file():
-        raise RunRefused(f"no run {run_id!r} in experiments/{exp.name}/runs/")
+        raise RunRefused(f"no run {run_id!r} in harnesses/{exp.name}/runs/")
     return path
 
 
@@ -200,13 +200,13 @@ def _read_episodes(path: Path) -> dict[tuple[str, int], dict]:
 
 
 def run_eval(
-    exp: Experiment,
+    exp: Harness,
     settings: RunSettings = RunSettings(),
     *,
-    resume: str | None = None,  # a run id of this experiment, or "last"
+    resume: str | None = None,  # a run id of this harness, or "last"
     make_spec: Callable[[str, int], EpisodeSpec] | None = None,
     models: dict[str, ModelSettings | None] | None = None,
-    runs_dir: Path | None = None,  # default: experiments/<name>/runs/
+    runs_dir: Path | None = None,  # default: harnesses/<name>/runs/
     echo: Callable[[str], None] = print,
 ) -> dict:
     """Run every selected task `trials` times, score the run, write it out. Returns its results.
@@ -220,16 +220,16 @@ def run_eval(
         previous = json.loads((run_dir / RESULTS_FILE).read_text())
         if previous["status"] == "complete":
             raise RunRefused(f"run {run_dir.name} is already complete")
-        if previous["experiment"]["version"] != exp.version:
-            raise RunRefused(f"experiments/{exp.name} changed since run {run_dir.name} started "
+        if previous["harness"]["version"] != exp.version:
+            raise RunRefused(f"harnesses/{exp.name} changed since run {run_dir.name} started "
                              "(prompt or skills differ); start a new run instead")
         settings = _settings_from_record(previous)
     s = settings
     if exp.dirty and not s.allow_dirty:
-        raise RunRefused(f"experiments/{exp.name} has uncommitted changes; commit them so the result "
+        raise RunRefused(f"harnesses/{exp.name} has uncommitted changes; commit them so the result "
                          "maps to a version (or pass --allow-dirty for a throwaway run)")
     if exp.skills_dir is not None and not exp.skill_names:
-        raise RunRefused(f"experiments/{exp.name}/skills has no skills yet (no */SKILL.md)")
+        raise RunRefused(f"harnesses/{exp.name}/skills has no skills yet (no */SKILL.md)")
     task_ids = previous["task_ids"] if previous else select_tasks(s.split, s.tasks, s.seed, s.final)
 
     if make_spec is None:
@@ -242,7 +242,7 @@ def run_eval(
         models = {"agent": agent, "user": user, "judge": judge}
 
         def make_spec(task_id: str, trial: int) -> EpisodeSpec:
-            return EpisodeSpec(task_id=task_id, experiment=exp, trial=trial, max_steps=s.max_steps,
+            return EpisodeSpec(task_id=task_id, harness=exp, trial=trial, max_steps=s.max_steps,
                                agent=agent, user=user, judge=judge)
     models = models or {}
     public = {role: (m.public() if m else None) for role, m in models.items()}
@@ -267,7 +267,7 @@ def run_eval(
             "run_id": run_id,
             "status": "running",
             "started_at": started.isoformat(timespec="seconds"),
-            "experiment": exp.public(),
+            "harness": exp.public(),
             "scaffolding": {"git_sha": _git("rev-parse", "HEAD"),
                             "dirty": bool(_git("status", "--porcelain", "--", "src"))},
             "settings": {**asdict(s), "tasks": s.tasks if isinstance(s.tasks, str) else list(s.tasks)},
@@ -395,14 +395,14 @@ def _fmt(s: dict, key: str) -> str:
 
 
 def summary_markdown(r: dict) -> str:
-    exp = r["experiment"]
+    exp = r["harness"]
     st = r["settings"]
     agent = r["models"].get("agent") or {}
     ep = r["episodes"]
     out = [
         f"# {exp['name']} / {r['run_id']}",
         "",
-        f"- experiment: `{exp['name']}` version `{exp['version'][:12]}` (commit `{(exp['git_commit'] or '-')[:10]}`"
+        f"- harness: `{exp['name']}` version `{exp['version'][:12]}` (commit `{(exp['git_commit'] or '-')[:10]}`"
         f"{', DIRTY' if exp['dirty'] else ''}); policy in prompt: {exp['uses_policy']}; "
         f"skills: {', '.join(exp['skills']) or 'none'}",
         f"- agent: `{agent.get('model')}` at `{agent.get('api_base')}` (profile {st['agent']}), "

@@ -1,7 +1,7 @@
 import ast
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[1] / "src" / "harness_builder"
+SRC = Path(__file__).resolve().parents[1] / "src" / "test_bench"
 
 
 def test_pinned_imports():

@@ -1,4 +1,4 @@
-"""pass@k and pass^k (docs/01-experiment-protocol.md, Metrics).
+"""pass@k and pass^k (docs/01-harness-protocol.md, Metrics).
 
 For a task with c successes out of n trials:
     pass@k = 1 - C(n-c, k) / C(n, k)   at least one of k attempts succeeds

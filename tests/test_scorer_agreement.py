@@ -5,10 +5,10 @@ import random
 
 import pytest
 
-from harness_builder import data
-from harness_builder.retail.models import RetailDB
-from harness_builder.retail.scorer import JUDGE_SYSTEM_PROMPT, JUDGE_USER_PROMPT, db_check
-from harness_builder.retail.tools import WRITE_TOOLS, RetailTools
+from test_bench import data
+from test_bench.retail.models import RetailDB
+from test_bench.retail.scorer import JUDGE_SYSTEM_PROMPT, JUDGE_USER_PROMPT, db_check
+from test_bench.retail.tools import WRITE_TOOLS, RetailTools
 
 
 def _tau2_db_match(task: dict, actions: list[dict]) -> bool:

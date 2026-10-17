@@ -14,7 +14,7 @@ def render(log: dict, task: dict | None = None) -> str:
     out = [
         f"# Task {log['task_id']}, trial {log['trial']}: reward {log['reward']}",
         "",
-        f"- experiment: `{log['experiment']}`",
+        f"- harness: `{log['harness']}`",
         f"- ended: `{log['termination_reason']}` after {log['steps']} steps, {log['seconds']}s",
         f"- database match: {score.get('db_match')}; assertion check: {score.get('nl_reward')}",
         f"- tool calls: {len(log['tool_calls'])} ({log['tool_errors']} errors); "

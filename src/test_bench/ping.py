@@ -8,7 +8,7 @@ import time
 from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 
-from harness_builder.model import agent_settings, build_agent_model
+from test_bench.model import agent_settings, build_agent_model
 
 PING_TOOL = types.FunctionDeclaration(
     name="get_order_details",

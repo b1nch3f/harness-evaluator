@@ -1,15 +1,16 @@
-# agent-harness-builder
+# harness-evaluator
 
-An experiment to measure how much **agent skills** (SKILL.md files) and, later, **model tuning** improve an open-weights agent on the τ²-bench **retail** domain, measured with pass@k and pass^k.
+Evaluate **agent harnesses** (a system prompt plus optional SKILL.md skills) on the τ²-bench **retail** domain with pass@k and pass^k, to find which harness makes an LLM agent most reliable. Model tuning comes later.
 
 - **Agent:** Google ADK, model `gpt-oss-120b` served behind an OpenAI-compatible endpoint (via LiteLLM).
 - **Environment and scoring:** τ²-bench retail tasks, policy and database, with the environment, simulated user and scorer reimplemented natively in ADK (τ² code runs only in tests that check agreement).
-- **Experiments:** one folder each in `experiments/` (system prompt, optional skills): `a0-bare` (dummy baseline, no policy), `domain` (policy in the prompt), `skills`, `domain-skills`.
+- **Harnesses:** one folder each in `harnesses/` (system prompt, optional skills): `a0-bare` (dummy baseline, no policy), `domain` (policy in the prompt), `skills`, `domain-skills`.
+- **Test bench:** `src/test_bench/`, the retail environment, simulated customer, judge, scorer and runner that every harness is evaluated in.
 - **Skills:** Agent Skills format, loaded by ADK's `SkillToolset`.
-- **Results:** each run is saved in its experiment's folder, `runs/<run_id>/`: `results.json`, `summary.md` and full conversation transcripts (local, git-ignored); Weights & Biases later.
+- **Results:** each run is saved in its harness's folder, `runs/<run_id>/`: `results.json`, `summary.md` and full conversation transcripts (local, git-ignored); Weights & Biases later.
 
 ```
-uv run sb experiments              # list experiments and versions
+uv run sb harnesses                # list harnesses and versions
 uv run sb eval a0-bare --trials 4  # run one (flags: --agent, --split, --tasks, --concurrency, ...)
 uv run sb results                  # every run so far
 ```
@@ -19,8 +20,8 @@ uv run sb results                  # every run so far
 | Who | Does what |
 |---|---|
 | Claude Code, run locally by the repo owner | Builds the project from `docs/02-implementation-plan.md`: uv project, ADK harness, eval runner, W&B logging, the `tau-eval` Claude skill |
-| Repo owner | Provides model endpoints and API keys locally; runs experiments; decides what to try next |
-| Claude (skill author) | Reads train transcripts, writes and revises `experiments/*/skills/`, commits harness versions |
+| Repo owner | Provides model endpoints and API keys locally; runs evaluations; decides what to try next |
+| Claude (skill author) | Reads train transcripts, writes and revises `harnesses/*/skills/`, commits harness versions |
 
 ## Read in this order
 

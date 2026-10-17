@@ -6,28 +6,28 @@ import shutil
 import pytest
 from scripted import Scripted, call, text
 
-from harness_builder.experiment import load_experiment
-from harness_builder.prompts import user_prompt
-from harness_builder.retail import episode as ep
-from harness_builder import data
+from test_bench.harness import load_harness
+from test_bench.prompts import user_prompt
+from test_bench.retail import episode as ep
+from test_bench import data
 
 FIXTURE_SKILLS = Path(__file__).parent / "fixtures" / "skills"
 TASK_ID = "0"  # train: Yusuf Rossi, zip 19122, exchange in order #W2378156
 
 
 @pytest.fixture
-def skills_experiment(tmp_path):
-    """A throwaway experiment: the domain prompt plus the neutral fixture skill."""
+def skills_harness(tmp_path):
+    """A throwaway harness: the domain prompt plus the neutral fixture skill."""
     folder = tmp_path / "with-skills"
     folder.mkdir()
-    shutil.copy(load_experiment("domain").dir / "system_prompt.md", folder / "system_prompt.md")
+    shutil.copy(load_harness("domain").dir / "system_prompt.md", folder / "system_prompt.md")
     shutil.copytree(FIXTURE_SKILLS, folder / "skills")
-    return load_experiment("with-skills", root=tmp_path)
+    return load_harness("with-skills", root=tmp_path)
 
 
-def _spec(experiment, agent, user, judge=None):
-    exp = experiment if not isinstance(experiment, str) else load_experiment(experiment)
-    return ep.EpisodeSpec(task_id=TASK_ID, experiment=exp,
+def _spec(harness, agent, user, judge=None):
+    exp = harness if not isinstance(harness, str) else load_harness(harness)
+    return ep.EpisodeSpec(task_id=TASK_ID, harness=exp,
                           agent_model=agent, user_model=user, judge_model=judge or Scripted([]))
 
 
@@ -56,7 +56,7 @@ def test_tool_calls_change_the_episode_database_and_get_scored():
 
     # The agent's system prompt is exactly the prompt file (no ADK identity line).
     first = agent.requests[0]
-    assert first.config.system_instruction == load_experiment("domain").prompt_text
+    assert first.config.system_instruction == load_harness("domain").prompt_text
     assert sorted(first.tools_dict) == sorted(ep.TOOL_NAMES)
     # History starts with the greeting, then the user's message.
     assert [c.role for c in first.contents] == ["model", "user"]
@@ -92,7 +92,7 @@ def test_judge_runs_for_tasks_with_assertions():
         f'{{"expectedOutcome": {a!r}, "reasoning": "x", "metExpectation": false}}'.replace("'", '"') for a in assertions
     ) + "]}\n```"
     judge = Scripted([[text(reply)]])
-    spec = ep.EpisodeSpec(task_id=task_id, experiment=load_experiment("domain"),
+    spec = ep.EpisodeSpec(task_id=task_id, harness=load_harness("domain"),
                           agent_model=agent, user_model=user, judge_model=judge)
     log = ep.run_episode(spec)
     assert log.score["db_match"] is True
@@ -124,17 +124,17 @@ def test_bare_condition_has_no_policy():
     user = Scripted([[text("Hi.")], [text("###STOP###")]])
     ep.run_episode(_spec("a0-bare", agent, user))
     si = agent.requests[0].config.system_instruction
-    assert si == load_experiment("a0-bare").prompt_text and "</policy>" not in si
+    assert si == load_harness("a0-bare").prompt_text and "</policy>" not in si
 
 
-def test_skills_load_locally_and_never_touch_the_database(skills_experiment):
+def test_skills_load_locally_and_never_touch_the_database(skills_harness):
     agent = Scripted([
         [call("list_skills")],
         [call("load_skill", skill_name="harness-check")],
         [text("How can I help with your exchange?")],
     ])
     user = Scripted([[text("Hi, I need an exchange.")], [text("###STOP###")]])
-    log = ep.run_episode(_spec(skills_experiment, agent, user))
+    log = ep.run_episode(_spec(skills_harness, agent, user))
     assert log.termination_reason == "user_stop"
     assert [c["name"] for c in log.skill_tool_calls] == ["list_skills", "load_skill"]
     assert "harness-check" in log.skill_tool_calls[1]["response"]
@@ -143,7 +143,7 @@ def test_skills_load_locally_and_never_touch_the_database(skills_experiment):
     first = agent.requests[0]
     assert "list_skills" in first.tools_dict and "load_skill" in first.tools_dict
     # The policy prompt comes first; SkillToolset may append its own text after it.
-    assert first.config.system_instruction.startswith(skills_experiment.prompt_text)
+    assert first.config.system_instruction.startswith(skills_harness.prompt_text)
 
 
 def test_empty_skills_folder_is_refused():

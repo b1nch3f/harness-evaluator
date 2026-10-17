@@ -1,14 +1,14 @@
-"""Experiments: one folder each under experiments/ (CLAUDE.md rule 3).
+"""Harnesses: one folder each under harnesses/ (CLAUDE.md rule 3).
 
-    experiments/<name>/system_prompt.md   the agent's system prompt, used as written;
-                                          `{policy}` is replaced with tau2's retail policy
-    experiments/<name>/skills/            optional; each subfolder with a SKILL.md is a
-                                          skill, given to the agent through ADK's SkillToolset
-    experiments/<name>/runs/              its runs (git-ignored); see runner.py
+    harnesses/<name>/system_prompt.md   the agent's system prompt, used as written;
+                                        `{policy}` is replaced with tau2's retail policy
+    harnesses/<name>/skills/            optional; each subfolder with a SKILL.md is a
+                                        skill, given to the agent through ADK's SkillToolset
+    harnesses/<name>/runs/              its runs (git-ignored); see runner.py
 
 How to run it (model, split, trials, ...) is given per run as `sb eval` flags.
-An experiment's version is the content hash of its harness (the prompt file
-and the skills folder), plus the last commit that touched the folder.
+A harness's version is the content hash of its prompt file and skills
+folder, plus the last commit that touched the folder.
 """
 
 from __future__ import annotations
@@ -18,22 +18,22 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from harness_builder import data
-from harness_builder.config import REPO_ROOT
+from test_bench import data
+from test_bench.config import REPO_ROOT
 
-EXPERIMENTS_DIR = REPO_ROOT / "experiments"
+HARNESSES_DIR = REPO_ROOT / "harnesses"
 PROMPT_FILE = "system_prompt.md"
 SKILLS_DIR = "skills"
 POLICY_PLACEHOLDER = "{policy}"
 
 
 @dataclass(frozen=True)
-class Experiment:
+class Harness:
     name: str
     dir: Path
     prompt_text: str
     uses_policy: bool
-    skills_dir: Path | None  # None when the experiment has no skills folder
+    skills_dir: Path | None  # None when the harness has no skills folder
     skill_names: tuple[str, ...]
     version: str  # sha256 of the harness: prompt file + skills folder (paths + bytes)
     prompt_sha256: str  # sha256 of the prompt as sent (policy filled in)
@@ -73,18 +73,18 @@ def _git(*args: str, cwd: Path) -> str | None:
     return out.stdout.strip()
 
 
-def list_experiments(root: Path = EXPERIMENTS_DIR) -> list[str]:
+def list_harnesses(root: Path = HARNESSES_DIR) -> list[str]:
     if not root.is_dir():
         return []
     return sorted(p.name for p in root.iterdir() if (p / PROMPT_FILE).is_file())
 
 
-def load_experiment(name: str, root: Path = EXPERIMENTS_DIR) -> Experiment:
+def load_harness(name: str, root: Path = HARNESSES_DIR) -> Harness:
     folder = root / name
     prompt_path = folder / PROMPT_FILE
     if not prompt_path.is_file():
-        known = ", ".join(list_experiments(root)) or "none"
-        raise FileNotFoundError(f"no experiment {name!r} (needs {prompt_path}); experiments: {known}")
+        known = ", ".join(list_harnesses(root)) or "none"
+        raise FileNotFoundError(f"no harness {name!r} (needs {prompt_path}); harnesses: {known}")
 
     raw = prompt_path.read_text().rstrip("\n")  # tau2 strips its prompt template
     uses_policy = POLICY_PLACEHOLDER in raw
@@ -105,7 +105,7 @@ def load_experiment(name: str, root: Path = EXPERIMENTS_DIR) -> Experiment:
     rel = folder.relative_to(REPO_ROOT).as_posix() if folder.is_relative_to(REPO_ROOT) else str(folder)
     commit = _git("log", "-1", "--format=%H", "--", rel, cwd=REPO_ROOT) or None
     status = _git("status", "--porcelain", "--", rel, cwd=REPO_ROOT)
-    return Experiment(
+    return Harness(
         name=name,
         dir=folder,
         prompt_text=text,

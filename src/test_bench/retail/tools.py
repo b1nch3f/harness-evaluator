@@ -4,7 +4,7 @@ Ported from tau2-bench (tau2/domains/retail/tools.py at the pinned commit,
 MIT license): same names, arguments, docstrings, checks and state changes,
 including quirks, because the scorer replays expected actions with this code
 and must reach the same database as tau2 would. Do not "fix" behavior here
-without changing the experiment.
+without changing the harness.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import List
 
-from harness_builder.retail.models import (
+from test_bench.retail.models import (
     GiftCard,
     Order,
     OrderPayment,

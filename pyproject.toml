@@ -1,7 +1,7 @@
 [project]
-name = "harness-builder"
+name = "harness-evaluator"
 version = "0.1.0"
-description = "Measure how agent skills improve gpt-oss-120b on tau2-bench retail"
+description = "Evaluate agent harnesses (system prompt + skills) on tau2-bench retail"
 readme = "README.md"
 authors = [
     { name = "Sangram Kesari Ray", email = "shankar.ray030@gmail.com" }
@@ -17,11 +17,14 @@ dependencies = [
 ]
 
 [project.scripts]
-sb = "harness_builder.cli:app"
+sb = "test_bench.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.12.13,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "test_bench"  # the import name differs from the distribution name
 
 [dependency-groups]
 dev = [
