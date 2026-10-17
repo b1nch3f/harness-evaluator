@@ -49,7 +49,7 @@ All conditions use the same model, endpoint, temperature, reasoning effort, user
 
 | Role | What it does | Model |
 |---|---|---|
-| Agent | answers the customer, calls the 15 retail tools against a fresh copy of the database | gpt-oss-120b (ADK `LlmAgent`) |
+| Agent | answers the customer, calls the 16 retail tools against a fresh copy of the database | gpt-oss-120b (ADK `LlmAgent`) |
 | Simulated user | plays the customer from the task's user scenario, using τ²'s user-simulator guidelines; ends with `###STOP###`, `###TRANSFER###` or `###OUT-OF-SCOPE###` | gpt-oss-120b (ADK `LlmAgent`, no tools) |
 | Judge | checks the task's natural-language assertions against the conversation, using τ²'s judge prompt | gpt-oss-120b, temperature 0 |
 

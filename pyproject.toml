@@ -12,7 +12,6 @@ dependencies = [
     "litellm==1.82.6",
     "pydantic==2.14.1",
     "python-dotenv==1.2.4",
-    "tau2[gym]",
     "typer==0.27.3",
     "wandb==0.28.1",
 ]
@@ -24,13 +23,14 @@ sb = "skills_builder.cli:app"
 requires = ["uv_build>=0.12.13,<0.13.0"]
 build-backend = "uv_build"
 
-[tool.uv.sources]
-tau2 = { git = "https://github.com/sierra-research/tau2-bench", rev = "96a3ef92329baf908ffe9dfe188cea34e8701d2a" }
-
 [dependency-groups]
 dev = [
     "pytest==9.1.1",
+    "tau2",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv.sources]
+tau2 = { git = "https://github.com/sierra-research/tau2-bench", rev = "96a3ef92329baf908ffe9dfe188cea34e8701d2a" }

@@ -11,7 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from skills_builder.config import REPO_ROOT, load_env
+from skills_builder import data
+from skills_builder.config import REPO_ROOT
 
 LABELS_PATH = REPO_ROOT / "data" / "labels" / "retail.json"
 
@@ -31,16 +32,16 @@ TRANSFER_TOOL = "transfer_to_human_agents"
 ALL_LABELS = [*WRITE_INTENTS.values(), "answer", "transfer"]
 
 
-def label_task(task) -> dict:
-    """Labels for one tau2 Task."""
-    criteria = task.evaluation_criteria
-    actions = (criteria.actions or []) if criteria else []
-    names = [a.name for a in actions]
+def label_task(task: dict) -> dict:
+    """Labels for one task (a tasks.json entry)."""
+    criteria = task.get("evaluation_criteria") or {}
+    actions = criteria.get("actions") or []
+    names = [a["name"] for a in actions]
     write_labels = sorted({WRITE_INTENTS[n] for n in names if n in WRITE_INTENTS})
     labels = list(write_labels)
     if TRANSFER_TOOL in names:
         labels.append("transfer")
-    if criteria and criteria.communicate_info:
+    if criteria.get("communicate_info"):
         labels.append("answer")
     return {
         "labels": sorted(labels),
@@ -50,19 +51,14 @@ def label_task(task) -> dict:
 
 
 def build_labels() -> dict:
-    """Labels for every retail task, read through tau2's own loaders."""
-    load_env()
-    from tau2.domains.retail.environment import get_tasks, get_tasks_split
-
-    splits = get_tasks_split()
+    """Labels for every retail task, from tau2's data files."""
     split_of = {}
     for name in ("train", "test"):
-        for tid in splits[name]:
+        for tid in data.splits()[name]:
             split_of[tid] = name
-    tasks = get_tasks("base")
     out = {}
-    for task in sorted(tasks, key=lambda t: int(t.id) if t.id.isdigit() else t.id):
-        out[task.id] = {"split": split_of[task.id], **label_task(task)}
+    for task in sorted(data.tasks(), key=lambda t: int(t["id"]) if t["id"].isdigit() else t["id"]):
+        out[task["id"]] = {"split": split_of[task["id"]], **label_task(task)}
     return out
 
 
