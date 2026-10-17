@@ -37,5 +37,14 @@ def labels() -> None:
         typer.echo(f"{split} ({n} tasks): {label_counts(rows, split)}")
 
 
+@app.command()
+def ping() -> None:
+    """Send one chat and one tool-call request to the agent model."""
+    from skills_builder.ping import main as run_ping
+
+    if not run_ping():
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()
