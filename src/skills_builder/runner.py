@@ -182,8 +182,12 @@ def run_eval(
     task_ids = select_tasks(s.split, s.tasks, s.seed, s.final)
 
     if make_spec is None:
-        agent = agent_settings(s.agent, s.model, s.temperature, s.reasoning_effort)
-        user, judge = user_settings(), judge_settings()
+        try:
+            agent = agent_settings(s.agent, s.model, s.temperature, s.reasoning_effort)
+            user, judge = user_settings(), judge_settings()
+        except RuntimeError as e:  # a profile's variables are missing from .env
+            raise RunRefused(f"{e} (profile {s.agent!r} needs {s.agent.upper()}_MODEL, "
+                             f"{s.agent.upper()}_API_BASE and {s.agent.upper()}_API_KEY)") from e
         models = {"agent": agent, "user": user, "judge": judge}
 
         def make_spec(task_id: str, trial: int) -> EpisodeSpec:
