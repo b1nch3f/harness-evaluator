@@ -1,15 +1,13 @@
 """End-to-end episode with scripted models (no network)."""
 
 from pathlib import Path
-from typing import AsyncGenerator
+import shutil
 
-from google.adk.models.base_llm import BaseLlm
-from google.adk.models.llm_request import LlmRequest
-from google.adk.models.llm_response import LlmResponse
-from google.genai import types
-from pydantic import PrivateAttr
+import pytest
+from scripted import Scripted, call, text
 
-from skills_builder.prompts import agent_prompt, user_prompt
+from skills_builder.experiment import load_experiment
+from skills_builder.prompts import user_prompt
 from skills_builder.retail import episode as ep
 from skills_builder import data
 
@@ -17,35 +15,19 @@ FIXTURE_SKILLS = Path(__file__).parent / "fixtures" / "skills"
 TASK_ID = "0"  # train: Yusuf Rossi, zip 19122, exchange in order #W2378156
 
 
-def call(name, **args):
-    return types.Part(function_call=types.FunctionCall(name=name, args=args))
+@pytest.fixture
+def skills_experiment(tmp_path):
+    """A throwaway experiment: the domain prompt plus the neutral fixture skill."""
+    folder = tmp_path / "with-skills"
+    folder.mkdir()
+    shutil.copy(load_experiment("domain").dir / "system_prompt.md", folder / "system_prompt.md")
+    shutil.copytree(FIXTURE_SKILLS, folder / "skills")
+    return load_experiment("with-skills", root=tmp_path)
 
 
-def text(t):
-    return types.Part(text=t)
-
-
-class Scripted(BaseLlm):
-    """Replies from a script; records every request it receives."""
-
-    model: str = "scripted"
-    _script: list = PrivateAttr(default_factory=list)
-    requests: list = []
-
-    def __init__(self, script):
-        super().__init__(model="scripted")
-        self._script = list(script)
-        self.requests = []
-
-    async def generate_content_async(self, llm_request: LlmRequest, stream: bool = False) -> AsyncGenerator[LlmResponse, None]:
-        self.requests.append(llm_request)
-        parts = self._script.pop(0)
-        yield LlmResponse(content=types.Content(role="model", parts=parts),
-                          usage_metadata=types.GenerateContentResponseUsageMetadata(prompt_token_count=10, candidates_token_count=2))
-
-
-def _spec(condition, agent, user, judge=None, skills_dir=None):
-    return ep.EpisodeSpec(task_id=TASK_ID, condition=condition, skills_dir=skills_dir,
+def _spec(experiment, agent, user, judge=None):
+    exp = experiment if not isinstance(experiment, str) else load_experiment(experiment)
+    return ep.EpisodeSpec(task_id=TASK_ID, experiment=exp,
                           agent_model=agent, user_model=user, judge_model=judge or Scripted([]))
 
 
@@ -59,7 +41,7 @@ def test_tool_calls_change_the_episode_database_and_get_scored():
         [text("Hi, I'm Yusuf Rossi, zip 19122. I want to exchange two items.")],
         [text("Never mind. ###STOP###")],
     ])
-    log = ep.run_episode(_spec("A_baseline", agent, user))
+    log = ep.run_episode(_spec("domain", agent, user))
 
     assert log.termination_reason == "user_stop"
     assert [c["name"] for c in log.tool_calls] == ["find_user_id_by_name_zip", "get_order_details"]
@@ -74,7 +56,7 @@ def test_tool_calls_change_the_episode_database_and_get_scored():
 
     # The agent's system prompt is exactly the prompt file (no ADK identity line).
     first = agent.requests[0]
-    assert first.config.system_instruction == agent_prompt("A_baseline").text
+    assert first.config.system_instruction == load_experiment("domain").prompt_text
     assert sorted(first.tools_dict) == sorted(ep.TOOL_NAMES)
     # History starts with the greeting, then the user's message.
     assert [c.role for c in first.contents] == ["model", "user"]
@@ -91,7 +73,7 @@ def test_expected_actions_score_one():
     script = [[call(a["name"], **a["arguments"])] for a in task["evaluation_criteria"]["actions"]]
     agent = Scripted(script + [[text("Your exchange has been requested.")]])
     user = Scripted([[text("I want to exchange items in order #W2378156.")], [text("Thanks! ###STOP###")]])
-    log = ep.run_episode(_spec("A_baseline", agent, user))
+    log = ep.run_episode(_spec("domain", agent, user))
     assert log.termination_reason == "user_stop"
     assert log.score["db_match"] is True
     assert task["evaluation_criteria"].get("nl_assertions") is None
@@ -110,7 +92,8 @@ def test_judge_runs_for_tasks_with_assertions():
         f'{{"expectedOutcome": {a!r}, "reasoning": "x", "metExpectation": false}}'.replace("'", '"') for a in assertions
     ) + "]}\n```"
     judge = Scripted([[text(reply)]])
-    spec = ep.EpisodeSpec(task_id=task_id, condition="A_baseline", agent_model=agent, user_model=user, judge_model=judge)
+    spec = ep.EpisodeSpec(task_id=task_id, experiment=load_experiment("domain"),
+                          agent_model=agent, user_model=user, judge_model=judge)
     log = ep.run_episode(spec)
     assert log.score["db_match"] is True
     assert log.score["nl_reward"] == 0.0 and log.reward == 0.0
@@ -122,14 +105,14 @@ def test_judge_runs_for_tasks_with_assertions():
 def test_empty_agent_reply_is_an_agent_error():
     agent = Scripted([[text("")]])
     user = Scripted([[text("Hi.")]])
-    log = ep.run_episode(_spec("A_baseline", agent, user))
+    log = ep.run_episode(_spec("domain", agent, user))
     assert log.termination_reason == "agent_error" and log.reward == 0.0
 
 
 def test_max_steps_ends_the_episode():
     agent = Scripted([[call("list_all_product_types")]] * 60)
     user = Scripted([[text("Hi.")]])
-    spec = _spec("A_baseline", agent, user)
+    spec = _spec("domain", agent, user)
     spec.max_steps = 10
     log = ep.run_episode(spec)
     assert log.termination_reason == "max_steps" and log.reward == 0.0
@@ -139,24 +122,30 @@ def test_max_steps_ends_the_episode():
 def test_bare_condition_has_no_policy():
     agent = Scripted([[text("How can I help?")]])
     user = Scripted([[text("Hi.")], [text("###STOP###")]])
-    ep.run_episode(_spec("A0_bare", agent, user))
+    ep.run_episode(_spec("a0-bare", agent, user))
     si = agent.requests[0].config.system_instruction
-    assert si == agent_prompt("A0_bare").text and "</policy>" not in si
+    assert si == load_experiment("a0-bare").prompt_text and "</policy>" not in si
 
 
-def test_skills_load_locally_and_never_touch_the_database():
+def test_skills_load_locally_and_never_touch_the_database(skills_experiment):
     agent = Scripted([
         [call("list_skills")],
         [call("load_skill", skill_name="harness-check")],
         [text("How can I help with your exchange?")],
     ])
     user = Scripted([[text("Hi, I need an exchange.")], [text("###STOP###")]])
-    log = ep.run_episode(_spec("B_skills", agent, user, skills_dir=FIXTURE_SKILLS))
+    log = ep.run_episode(_spec(skills_experiment, agent, user))
     assert log.termination_reason == "user_stop"
     assert [c["name"] for c in log.skill_tool_calls] == ["list_skills", "load_skill"]
     assert "harness-check" in log.skill_tool_calls[1]["response"]
+    assert all("at_message" in c for c in log.skill_tool_calls)
     assert log.tool_calls == []
     first = agent.requests[0]
     assert "list_skills" in first.tools_dict and "load_skill" in first.tools_dict
     # The policy prompt comes first; SkillToolset may append its own text after it.
-    assert first.config.system_instruction.startswith(agent_prompt("B_skills").text)
+    assert first.config.system_instruction.startswith(skills_experiment.prompt_text)
+
+
+def test_empty_skills_folder_is_refused():
+    with pytest.raises(ValueError, match="no skills"):
+        ep.run_episode(_spec("skills", Scripted([]), Scripted([])))

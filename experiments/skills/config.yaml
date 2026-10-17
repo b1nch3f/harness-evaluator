@@ -1,0 +1,16 @@
+# How `uv run sb eval <experiment>` runs this experiment.
+# Model endpoints and keys stay in .env; only the profile prefix is named here.
+
+agent:
+  profile: AGENT            # reads AGENT_MODEL, AGENT_API_BASE, AGENT_API_KEY from .env
+  # model: openai/...       # optional: overrides <PROFILE>_MODEL
+  temperature: 0.0
+  reasoning_effort: medium  # low | medium | high | none
+
+run:
+  split: train              # train | test | all  (test and all also need --final)
+  trials: 4
+  tasks: all                # all | half:authoring | half:scoring | [0, 5, 12]
+  # seed: 17                # required for half:authoring / half:scoring
+  concurrency: 1            # conversations at a time
+  max_steps: 100

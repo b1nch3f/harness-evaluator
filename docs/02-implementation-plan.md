@@ -7,7 +7,7 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 ## M1. Project skeleton (done)
 
 - `uv` package `skills_builder`, `src/` layout, Python 3.12 (τ² imports `audioop`, removed in 3.13).
-- Pinned: `google-adk==2.12.0`, `litellm==1.82.6`, `wandb==0.28.1`, `python-dotenv`, `pydantic`, `typer`, `pytest` (dev). `tau2` (git, pinned commit) is a **dev** dependency, used only by tests. Notes: litellm is held below 1.82.7 by tau2; newer wandb conflicts with ADK's opentelemetry pin.
+- Pinned: `google-adk==2.12.0`, `litellm==1.82.6`, `wandb==0.28.1`, `pyyaml==6.0.3`, `python-dotenv`, `pydantic`, `typer`, `pytest` (dev). `tau2` (git, pinned commit) is a **dev** dependency, used only by tests. Notes: litellm is held below 1.82.7 by tau2; newer wandb conflicts with ADK's opentelemetry pin.
 - τ²-bench is a git submodule at `third_party/tau2-bench`, pinned to the commit above, for its data files.
 - `.env` loaded at startup; CLI entry point `uv run sb ...`.
 
@@ -28,7 +28,7 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 
 **Accept:** `sb ping` returns a valid, parsed tool call from gpt-oss-120b.
 
-## M4. ADK-native retail harness
+## M4. ADK-native retail harness (done)
 
 ### Environment (`skills_builder/retail/`)
 
@@ -42,7 +42,7 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 2. **Simulated user:** an ADK `LlmAgent` with no tools. System prompt = τ²'s user-simulator layout: `simulation_guidelines.md`, then `<scenario>` with the task's user scenario formatted as τ² does. It sees the agent's messages as user messages.
 3. Turn: the user's message goes to the agent's `runner.run_async(...)`; ADK runs tool calls natively against the episode database; the agent's final text goes to the user simulator. Repeat.
 4. **End:** user message contains `###STOP###`, `###TRANSFER###` or `###OUT-OF-SCOPE###`; or steps reach `MAX_STEPS` (a text message is 1 step, a tool call with its result 2, as in τ²'s orchestrator); or 10 tool errors; or the agent sends an empty message (agent error).
-5. Agent: ADK `LlmAgent` with the condition's prompt file as `instruction` (a callable, so ADK does no `{placeholder}` injection), the 16 retail tools, plus `SkillToolset(skills=load_skills_from_dir(<skills dir>))` for `B_skills` and `C_skills_only` (default lazy discovery: the model calls `list_skills`, then `load_skill`). A `before_model_callback` removes ADK's identity line so the prompt is exactly the file.
+5. Agent: ADK `LlmAgent` with the experiment's `system_prompt.md` as `instruction` (a callable, so ADK does no `{placeholder}` injection), the 16 retail tools, plus `SkillToolset(skills=load_skills_from_dir(<experiment>/skills))` when the experiment has skills (default lazy discovery: the model calls `list_skills`, then `load_skill`). A `before_model_callback` removes ADK's identity line so the prompt is exactly the file.
 6. Fresh `InMemoryRunner` session per episode for the agent and for the user.
 7. The episode log records every message, every tool call with arguments and result, every skill-tool call, model-call counts and token usage, termination reason, and the score breakdown.
 
@@ -52,71 +52,69 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 - **Assertion check:** for tasks with `nl_assertions`, one judge call with τ²'s judge prompt (`tau2/evaluator/evaluator_nl_assertions.py`), conversation rendered as `role: content` lines; every returned `metExpectation` must be true. Parse failures retry up to 3 times, then count as an infrastructure error (not a model failure).
 - Reward = database check × assertion check.
 
-### Prompts
+### Experiments
 
-- `prompts/A0_bare.md`: `<instructions>` + τ²'s agent instruction.
-- `prompts/A_baseline.md`: τ²'s layout, `<instructions>` + `<policy>`, with `{policy}` filled from `policy.md` at load time. `B_skills` uses the same file.
-- `prompts/C_skills_only.md`: written by the skill author when C starts.
+- `experiments/<name>/system_prompt.md`, optional `skills/`, `config.yaml` (see CLAUDE.md rule 3).
+- `a0-bare`: `<instructions>` + τ²'s agent instruction. `domain`: τ²'s layout, `<instructions>` + `<policy>`, with `{policy}` filled from `policy.md` at load time (a test checks it equals τ²'s own agent prompt). `skills` and `domain-skills` reuse those prompts and have empty `skills/` folders.
 
-**Accept:** one train task runs end to end in `A_baseline` and in `B_skills` (with a test fixture skill, since `skills/retail/` is empty until M9); the reward and its breakdown are reported; the log shows every tool call and its result.
+**Accept (met):** one train task ran end to end with the policy prompt (reward 1.0) and with a fixture skill (ran; reward 0, a model error); the log shows every tool call and its result.
 
-## M5. Pre-flight checks
+## M5. Eval runner (done)
 
-1. **Tool parity (test, uses τ² code):** for every expected action in all 114 tasks, run it on our database and on τ²'s, starting from fresh copies; results and resulting databases must match. Plus targeted error cases (non-pending order, wrong payment method, insufficient gift-card balance).
-2. **Scorer agreement (test, uses τ² code):** for a set of trajectories (the expected actions themselves, expected actions with one action dropped or changed, and real logged episodes), our database check must give the same result as τ²'s `EnvEvaluator`.
-3. **Tool-call health:** in 10 `A_baseline` train episodes, zero tool-call parse errors.
-4. **Noise floor:** run `A_baseline` on all 74 train tasks twice with `n = 4`; record the difference in pass^1 and pass^4.
+`uv run sb eval <experiment> [--split train|test|all] [--trials N] [--tasks all|half:authoring|half:scoring|0,5,12] [--agent PROFILE] [--final] [--allow-dirty]`
 
-**Accept:** 1 and 2 pass in `uv run pytest`; 3 and 4 recorded in `results/preflight/`.
+- Settings come from `experiments/<name>/config.yaml`; the flags override them for one run.
+  ```yaml
+  agent: {profile: AGENT, temperature: 0.0, reasoning_effort: medium}   # profile = .env prefix
+  run: {split: train, trials: 4, tasks: all, seed: null, concurrency: 1, max_steps: 100}
+  ```
+- One conversation at a time unless `run.concurrency` > 1 (then a thread pool, one event loop and database per episode).
+- Refuses: test tasks without `--final`; an experiment folder with uncommitted changes (unless `--allow-dirty`); a skills folder with no skills.
+- Retries an episode on exceptions (transport errors, unparseable judge replies), up to 3 attempts, and records them; a low reward is never retried. Five consecutive failed episodes abort the run.
+- Writes `runs/<run_id>/` (git-ignored): `config.json` (CLAUDE.md rule 8), `result.json`, `summary.md`, and `conversations/<task>_t<trial>.json` + `.md` for every **train** episode. Test conversations are not written.
+- Appends the run to `results.json` (git-ignored, file-locked): config, scores per split (pass@k and pass^k for k = 1, 2, 4, 8 with bootstrap CIs; per intent, width and depth), per-task rewards and endings, episode counts, token usage.
+- `run_id` = `<UTC time>_<experiment>_<version[:8]>_<agent model>_<split>_n<trials>`.
+- `sb results` lists all runs; `sb experiments` lists experiments and versions.
+- Other LLMs: add `<PROFILE>_MODEL`, `<PROFILE>_API_BASE`, `<PROFILE>_API_KEY` to `.env` and set `agent.profile` (or `--agent PROFILE`). The simulated user and judge stay fixed.
 
-## M6. Eval runner
+**Accept (met, offline):** with scripted models, a run writes all files; pass^k recomputed from per-task counts matches the summary; test tasks are refused without `--final` and never saved; retries and aborts behave as above; parallel and sequential runs agree.
 
-`uv run sb eval --condition {A0_bare,A_baseline,B_skills,C_skills_only} --split train --trials 8 [--skills-dir skills/retail] [--tasks half:scoring --seed 17] [--concurrency 16] [--final]`
+## M6. Pre-flight checks
 
-- Runs every selected task `n` times with bounded concurrency (one episode per worker thread, each with its own event loop and database).
-- Retries an episode on transport errors (not on model failures), up to 3 times, and records retries.
-- `--split test` is refused without `--final`.
-- `--tasks half:authoring|half:scoring --seed S` selects the halves defined in the protocol.
-- Writes `results/<run_id>/`:
-  - `config.json`: everything listed in CLAUDE.md rule 7
-  - `summary.json`: pass@k and pass^k (k = 1, 2, 4, 8), overall, per intent, per width, per depth, with bootstrap CIs
-  - `per_task.csv`: task id, labels, successes, trials, pass@k, pass^k
-  - `failures/` (**train only**): one JSON per failed episode (full message list, tool calls, tool results, skills loaded, score breakdown)
-  - `summary.md`: a short human-readable table
-- `run_id` format: `<date>_<condition>_<skills-version-or-none>_<split>_n<trials>`.
+1. **Tool parity (test, uses τ² code):** done; all 114 tasks' expected actions give the same results and databases as τ²'s.
+2. **Scorer agreement (test, uses τ² code):** done; our database check agrees with τ²'s `EnvironmentEvaluator` on expected, dropped, repeated and changed action variants for all 114 tasks.
+3. **Tool-call health:** `sb eval a0-bare --tasks <10 train ids> --trials 1`: zero tool-call parse errors (10 conversations).
+4. **Noise floor:** `a0-bare` on train, `n = 4`, twice (2 × 296 conversations); record the difference in pass^1 and pass^4.
 
-**Accept:** a train run of `A_baseline` with `n = 2` produces all files; recomputing pass^k from `per_task.csv` matches `summary.json`.
+**Accept:** 3 and 4 recorded in `results.json`, with the noise floor written into `docs/01-experiment-protocol.md`.
 
 ## M7. Weights & Biases
 
-- One W&B run per eval run; project `automatic-agent-skills-builder`.
-- `config`: the contents of `config.json`.
-- Log pass@k and pass^k for each k, overall and per intent, as summary metrics, plus a per-task table.
-- Log the skills folder as a W&B artifact named `skills-retail`, versioned by its content hash.
-- Group runs by `condition`; tag with skills version.
-- W&B is for charts across iterations. **The committed `results/` files remain the source of truth**, because the skill author cannot reach W&B.
+- One W&B run per eval run; project `automatic-agent-skills-builder`; `config` = the run's `config.json`.
+- Log pass@k and pass^k for each k, overall and per intent, plus a per-task table.
+- Log the experiment's harness as an artifact versioned by its hash. Group runs by experiment; tag with the agent model.
+- W&B is the off-machine copy of `results.json`.
 
 **Accept:** two runs appear in W&B with comparable pass^k charts.
 
 ## M8. Claude skill: `tau-eval`
 
-Create `.claude/skills/tau-eval/SKILL.md` (Agent Skills format: YAML frontmatter with `name` and `description`, then instructions). The skill lets the repo owner say "run the eval for the current skills" and have Claude Code:
+Create `.claude/skills/tau-eval/SKILL.md` so the owner can say "run experiment X" and have Claude Code:
 
-1. Check `.env` has the required keys and run `sb ping`.
-2. Record the current skills version (git SHA of `skills/`).
-3. Run the requested eval (default: `B_skills`, train, scoring half for the current iteration seed, `n = 4`).
-4. Show `summary.md` and the comparison with the previous accepted version.
-5. Commit `results/<run_id>/` (never test trajectories) and push.
+1. Check `.env` has the profile's keys and run `sb ping`.
+2. Check the experiment folder is committed, state the number of conversations, and wait for the go-ahead.
+3. Run `sb eval <experiment>`.
+4. Show `summary.md`, the comparison with earlier runs from `sb results`, and the most common failure patterns from the saved transcripts.
 
-Also add a short section for the final test run, which requires the user to say so explicitly.
+Also a section for the final test run, which requires the owner to say so explicitly.
 
-**Accept:** invoking the skill runs an eval and pushes its results.
+**Accept:** invoking the skill runs an eval and reports it.
 
-## M9. Hand-off to the skill author
+## M9. Baselines and hand-off
 
-- Run `A0_bare` and `A_baseline` on all of train with `n = 8`; commit the results.
-- Create an empty `skills/retail/` with a `README.md` pointing to `docs/03-skill-authoring-loop.md`.
-- Push, then tell the skill author the run ids.
+- Run `a0-bare` on train (`n = 8`) and, on the owner's explicit request, on test (`--split test --final`).
+- Run `domain` on train (`n = 8`).
+- Tell the skill author which runs to read.
 
 ## Out of scope here
 

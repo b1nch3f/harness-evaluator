@@ -27,7 +27,8 @@ from google.genai import types
 
 from skills_builder import data
 from skills_builder.model import ModelSettings, agent_settings, build_model, judge_settings, user_settings
-from skills_builder.prompts import AgentPrompt, agent_prompt, user_prompt
+from skills_builder.experiment import Experiment
+from skills_builder.prompts import user_prompt
 from skills_builder.retail.models import RetailDB
 from skills_builder.retail.runtime import result_text, to_plain
 from skills_builder.retail.scorer import JudgeError, score_episode
@@ -101,7 +102,7 @@ async def _run_turn(runner: InMemoryRunner, session_id: str, text: str, abort: a
 @dataclass
 class EpisodeLog:
     task_id: str
-    condition: str
+    experiment: str
     trial: int = 0
     reward: float = 0.0
     termination_reason: str = ""
@@ -182,7 +183,8 @@ class _Episode:
         """Record skill-tool calls (they run locally in ADK and never touch the database)."""
         if tool.name not in TOOL_NAMES:
             self.log.skill_tool_calls.append(
-                {"name": tool.name, "arguments": dict(args or {}), "response": _short(tool_response)}
+                {"name": tool.name, "arguments": dict(args or {}), "response": _short(tool_response),
+                 "at_message": len(self.log.messages)}
             )
         return None
 
@@ -210,9 +212,8 @@ def _usage_recorder(bucket: dict):
 @dataclass
 class EpisodeSpec:
     task_id: str
-    condition: str
+    experiment: Experiment
     trial: int = 0
-    skills_dir: Path | None = None
     max_steps: int = 100
     agent: ModelSettings | None = None
     user: ModelSettings | None = None
@@ -234,11 +235,11 @@ def _skill_toolset(skills_dir: Path):
 
 async def run_episode_async(spec: EpisodeSpec) -> EpisodeLog:
     task = data.tasks_by_id()[spec.task_id]
-    prompt: AgentPrompt = agent_prompt(spec.condition)
-    if prompt.uses_skills and spec.skills_dir is None:
-        raise ValueError(f"{spec.condition} needs --skills-dir")
+    exp = spec.experiment
+    if exp.skills_dir is not None and not exp.skill_names:
+        raise ValueError(f"experiment {exp.name!r} has a skills folder with no skills in it yet")
 
-    log = EpisodeLog(task_id=spec.task_id, condition=spec.condition, trial=spec.trial)
+    log = EpisodeLog(task_id=spec.task_id, experiment=exp.name, trial=spec.trial)
     ep = _Episode(task, spec.max_steps, log)
     t0 = time.time()
 
@@ -246,12 +247,12 @@ async def run_episode_async(spec: EpisodeSpec) -> EpisodeLog:
     user_model = spec.user_model or build_model(spec.user or user_settings())
 
     tools: list = ep.adk_tools()
-    if prompt.uses_skills:
-        tools.append(_skill_toolset(spec.skills_dir))
+    if exp.skills_dir is not None:
+        tools.append(_skill_toolset(exp.skills_dir))
     agent = LlmAgent(
         name=AGENT_NAME,
         model=agent_model,
-        instruction=lambda _ctx: prompt.text,  # callable: no {placeholder} injection
+        instruction=lambda _ctx: exp.prompt_text,  # callable: no {placeholder} injection
         tools=tools,
         before_model_callback=strip_identity(AGENT_NAME),
         after_model_callback=_usage_recorder(log.usage["agent"]),
@@ -341,10 +342,11 @@ def run_episode(spec: EpisodeSpec) -> EpisodeLog:
     return asyncio.run(run_episode_async(spec))
 
 
-def default_spec(task_id: str, condition: str, skills_dir: Path | None = None, trial: int = 0) -> EpisodeSpec:
-    from skills_builder.config import env
-
+def default_spec(task_id: str, experiment: Experiment, trial: int = 0) -> EpisodeSpec:
+    """A spec from the experiment's config.yaml and .env."""
+    a = experiment.config.agent
     return EpisodeSpec(
-        task_id=task_id, condition=condition, trial=trial, skills_dir=skills_dir,
-        max_steps=int(env("MAX_STEPS", "100")),
+        task_id=task_id, experiment=experiment, trial=trial,
+        max_steps=experiment.config.run.max_steps,
+        agent=agent_settings(a.profile, a.model, a.temperature, a.reasoning_effort),
     )

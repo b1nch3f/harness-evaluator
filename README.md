@@ -4,22 +4,28 @@ An experiment to measure how much **agent skills** (SKILL.md files) and, later, 
 
 - **Agent:** Google ADK, model `gpt-oss-120b` served behind an OpenAI-compatible endpoint (via LiteLLM).
 - **Environment and scoring:** τ²-bench retail tasks, policy and database, with the environment, simulated user and scorer reimplemented natively in ADK (τ² code runs only in tests that check agreement).
-- **Conditions:** `A0_bare` (no policy), `A_baseline` (policy in the prompt), `B_skills` (policy + skills), `C_skills_only` (skills carry the rules).
+- **Experiments:** one folder each in `experiments/` (system prompt, optional skills, `config.yaml`): `a0-bare` (dummy baseline, no policy), `domain` (policy in the prompt), `skills`, `domain-skills`.
 - **Skills:** Agent Skills format, loaded by ADK's `SkillToolset`.
-- **Tracking:** Weights & Biases, plus result files committed to this repo.
+- **Results:** `results.json` and full conversation transcripts in `runs/` (both local, git-ignored); Weights & Biases later.
+
+```
+uv run sb experiments              # list experiments and versions
+uv run sb eval a0-bare             # run one, as set in experiments/a0-bare/config.yaml
+uv run sb results                  # every run so far
+```
 
 ## How the work is split
 
 | Who | Does what |
 |---|---|
-| Claude Code, run locally by the repo owner | Builds the project from `docs/02-implementation-plan.md`: uv project, harness, τ² bridge, eval runner, W&B logging, the `tau-eval` Claude skill |
-| Repo owner | Provides the model endpoint and API keys locally; runs evaluations through the `tau-eval` skill; commits results |
-| Claude (cloud session, skill author) | Reads committed train results, writes and revises `skills/retail/*`, pushes skill versions |
+| Claude Code, run locally by the repo owner | Builds the project from `docs/02-implementation-plan.md`: uv project, ADK harness, eval runner, W&B logging, the `tau-eval` Claude skill |
+| Repo owner | Provides model endpoints and API keys locally; runs experiments; decides what to try next |
+| Claude (skill author) | Reads train transcripts, writes and revises `experiments/*/skills/`, commits harness versions |
 
 ## Read in this order
 
 1. [`docs/01-experiment-protocol.md`](docs/01-experiment-protocol.md): what is measured, splits, conditions, rules that keep the test set clean
 2. [`docs/02-implementation-plan.md`](docs/02-implementation-plan.md): what to build, in milestone order, with acceptance checks
-3. [`docs/03-skill-authoring-loop.md`](docs/03-skill-authoring-loop.md): how skill versions are written, evaluated and accepted
+3. [`docs/03-skill-authoring-loop.md`](docs/03-skill-authoring-loop.md): how harness versions are written, evaluated and accepted
 4. [`docs/04-model-endpoint.md`](docs/04-model-endpoint.md): where to get a gpt-oss-120b endpoint and how to configure it
 5. [`CLAUDE.md`](CLAUDE.md): standing instructions for Claude Code working in this repo

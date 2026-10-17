@@ -25,14 +25,13 @@ vLLM on a single 80 GB GPU (H100 or H200) serving `openai/gpt-oss-120b`, OpenAI-
 
 ## Configuration
 
-Set in `.env` (see `.env.example`):
+Secrets and endpoints go in `.env` (see `.env.example`); how each experiment uses them goes in `experiments/<name>/config.yaml`.
 
-- `AGENT_MODEL`: LiteLLM model string, for example `openai/gpt-oss-120b` for an OpenAI-compatible endpoint, or the provider's own LiteLLM prefix.
-- `AGENT_API_BASE`, `AGENT_API_KEY`
-- `AGENT_TEMPERATURE` (default 0.0), `AGENT_REASONING_EFFORT` (low | medium | high; fixed for the experiment)
-- `USER_MODEL`, `USER_API_BASE`, `USER_API_KEY`, `USER_TEMPERATURE`, `USER_REASONING_EFFORT`: the simulated user. This experiment uses gpt-oss-120b on the same endpoint.
+- **Agent, by profile.** `config.yaml` names a profile (`agent.profile: AGENT`), and the runner reads `<PROFILE>_MODEL` (a LiteLLM model string, for example `openai/openai/gpt-oss-120b` for the RunPod vLLM route), `<PROFILE>_API_BASE`, `<PROFILE>_API_KEY`, and optionally `<PROFILE>_TEMPERATURE` and `<PROFILE>_REASONING_EFFORT`. `agent.model`, `agent.temperature` and `agent.reasoning_effort` in `config.yaml` override them. To try another LLM, add another prefix (for example `QWEN_MODEL`, `QWEN_API_BASE`, `QWEN_API_KEY`) and run `sb eval <experiment> --agent QWEN`. Use `reasoning_effort: none` for models that don't take it.
+- `USER_MODEL`, `USER_API_BASE`, `USER_API_KEY`, `USER_TEMPERATURE`, `USER_REASONING_EFFORT`: the simulated user. Fixed for every experiment and every agent model, so scores stay comparable.
 - `JUDGE_MODEL`, `JUDGE_API_BASE`, `JUDGE_API_KEY`, `JUDGE_REASONING_EFFORT`: the assertion judge (temperature fixed at 0). Defaults to the user-simulator settings.
 - The RunPod vLLM worker needs `ENABLE_AUTO_TOOL_CHOICE=true` and `TOOL_CALL_PARSER=openai`. Running workers keep old settings after a change; terminate them so new ones start.
+- Concurrency (`run.concurrency` in `config.yaml`) should not exceed what the endpoint can serve; with one RunPod worker, keep it at 1.
 - Scores are not comparable with published τ² results (they use gpt-4.1 as user and judge, and τ²'s own harness).
 
 ## Rough cost for phase 1

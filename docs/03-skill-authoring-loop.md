@@ -1,19 +1,25 @@
-# Skill authoring loop
+# Harness tuning loop
 
-Skills are written by a separate author (a Claude cloud session) that cannot reach the model endpoint or W&B. The repo is the channel: the author pushes skills, the repo owner runs evals locally with the `tau-eval` Claude skill, and the results come back as committed files.
+A harness is an experiment folder's `system_prompt.md` plus its `skills/`. Tuning means editing them on train and keeping only edits that help. Skills are written by a separate author (a Claude session); prompt edits follow the same loop.
+
+## Where things are
+
+- Harnesses: `experiments/<name>/` (committed).
+- Results: `results.json` and `runs/<run_id>/` (git-ignored, on the owner's machine). Each run has `summary.md` and, for train tasks, `conversations/<task>_t<trial>.md`: the full conversation, tool calls and results, skills loaded, the customer's goal, the expected actions and the score breakdown.
+- Because results are local, an author without access to the owner's machine gets the failure transcripts from the owner.
 
 ## One iteration
 
-1. **Owner:** runs the eval for the current skills version on the train split (see the protocol for halves and seeds) and pushes `results/<run_id>/`.
-2. **Author:** pulls, reads `summary.json`, `per_task.csv` and the train failures in `failures/` (authoring half only), and decides which intent to work on, normally the weakest by pass^4.
-3. **Author:** edits one skill (or a small related set), commits with a message naming the target intent and the hypothesis, and pushes.
-4. **Owner:** runs the eval on the scoring half.
-5. **Accept or reject** (rule in the protocol). An accepted version is tagged `skills-vN`. A rejected one is reverted, with the result kept for the record.
+1. **Owner:** runs `sb eval <experiment> --tasks half:authoring` and `--tasks half:scoring` with the iteration's seed (in `config.yaml`, `run.seed`).
+2. **Author:** reads `summary.md` and the failed transcripts from the **authoring half only**, picks one intent to work on (normally the weakest by pass^4) and states a hypothesis.
+3. **Author:** edits one skill (or a small related set, or the prompt) and commits with a message naming the target intent and the hypothesis.
+4. **Owner:** runs the scoring half for the new version.
+5. **Accept or reject** (rule in the protocol). An accepted version is tagged `<experiment>-vN`. A rejected one is reverted; its result stays in `results.json`.
 
 ## Skill layout
 
 ```
-skills/retail/
+experiments/<skills|domain-skills>/skills/
   authenticate-user/SKILL.md
   cancel-pending-order/SKILL.md
   modify-pending-order-items/SKILL.md
@@ -24,26 +30,25 @@ skills/retail/
   modify-user-address/SKILL.md
   answer-account-questions/SKILL.md
   <skill>/references/   detailed rules, loaded on demand
-  <skill>/scripts/      calculations only; never touch τ² state
+  <skill>/scripts/      calculations only; never touch the retail database
 ```
 
 Each `SKILL.md` has YAML frontmatter (`name`, `description` saying when to use it **and when not to**), then:
 
-- **Rules:** policy preconditions, required confirmations, when to refuse or transfer. These come from the τ² retail policy.
+- **Rules:** policy preconditions, required confirmations, when to refuse or transfer.
 - **Steps:** the workflow in order.
-- **Hints:** advice that corrects the current model's habits. Kept in a separate, labelled section so its size can be tracked across model versions.
+- **Hints:** advice that corrects the current model's habits, kept in a separate, labelled section so its size can be tracked across models.
 
 Keep each `SKILL.md` under 300 lines; move detail into `references/`.
 
-## Two skill conditions
+## The two skill experiments
 
-- **`B_skills`:** the full policy stays in the system prompt; skills add procedure, ordering, checks and edge cases.
-- **`C_skills_only`:** the system prompt holds only the agent instruction and a few cross-cutting rules (authenticate first, explicit confirmation before any change, one user per conversation, no invented information, when to transfer), in `prompts/C_skills_only.md`. Each skill carries the policy rules for its intent, because the agent sees them only after loading the skill. Written by the author once `B_skills` iteration has started; same iteration and acceptance rules.
+- **`domain-skills`:** the full policy stays in the system prompt; skills add procedure, ordering, checks and edge cases the policy leaves implicit. Don't copy the policy into skills.
+- **`skills`:** no policy in the prompt, so each skill carries the policy rules for its own intent; the agent sees them only after loading the skill. The prompt may gain a few cross-cutting rules (authenticate first, explicit confirmation before any change, one user per conversation, no invented information, when to transfer).
 
 ## Rules for the author
 
-1. **No record-specific content.** No user IDs, names, emails, order or item IDs, product option values, or amounts from any task. Skills hold rules and procedures only. Every edit is checked for this before commit.
-2. **Never read test results or test trajectories.**
+1. **No record-specific content.** No user IDs, names, emails, order or item IDs, product option values, or amounts from any task. Harnesses hold rules and procedures only. Every edit is checked for this before commit.
+2. **Never read test results.** Test conversations are never saved.
 3. **One target per iteration,** so each accepted gain can be attributed.
-4. **Don't copy the policy wholesale (B).** In `B_skills` the policy is already in the system prompt; skills add procedure, ordering, checks and edge cases that the policy leaves implicit. In `C_skills_only`, each skill must include the rules for its own intent.
-5. **Record the author** in each commit: these are skills written by a strong external model, which matters when comparing with self-generated skills later.
+4. **Record the author** in each commit: skills written by a strong external model matter when comparing with self-generated skills later.

@@ -44,18 +44,34 @@ def _require(name: str) -> str:
 
 def _effort(name: str, default: str | None) -> str | None:
     effort = env(name, default)
+    if effort == "none":  # for models that take no reasoning_effort
+        return None
     if effort is not None and effort not in REASONING_EFFORTS:
         raise RuntimeError(f"{name} must be one of {REASONING_EFFORTS}")
     return effort
 
 
-def agent_settings() -> ModelSettings:
+def agent_settings(profile: str = "AGENT", model: str | None = None, temperature: float | None = None,
+                   reasoning_effort: str | None = None) -> ModelSettings:
+    """Agent model settings from .env, read under a profile prefix.
+
+    The default profile reads AGENT_MODEL, AGENT_API_BASE, AGENT_API_KEY,
+    AGENT_TEMPERATURE and AGENT_REASONING_EFFORT. Another LLM is another
+    prefix, for example QWEN_MODEL, QWEN_API_BASE, QWEN_API_KEY. Arguments
+    given here (from an experiment's config.yaml) override the .env values.
+    """
+    p = profile.upper()
+    effort = _effort(f"{p}_REASONING_EFFORT", "medium")
+    if reasoning_effort is not None:
+        if reasoning_effort not in (*REASONING_EFFORTS, "none"):
+            raise RuntimeError(f"reasoning_effort must be one of {REASONING_EFFORTS} or none")
+        effort = None if reasoning_effort == "none" else reasoning_effort
     return ModelSettings(
-        model=_require("AGENT_MODEL"),
-        api_base=_require("AGENT_API_BASE"),
-        api_key=_require("AGENT_API_KEY"),
-        temperature=float(env("AGENT_TEMPERATURE", "0.0")),
-        reasoning_effort=_effort("AGENT_REASONING_EFFORT", "medium"),
+        model=model or _require(f"{p}_MODEL"),
+        api_base=_require(f"{p}_API_BASE"),
+        api_key=_require(f"{p}_API_KEY"),
+        temperature=float(temperature if temperature is not None else env(f"{p}_TEMPERATURE", "0.0")),
+        reasoning_effort=effort,
     )
 
 
