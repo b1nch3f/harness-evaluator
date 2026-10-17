@@ -3,7 +3,8 @@
 An experiment to measure how much **agent skills** (SKILL.md files) and, later, **model tuning** improve an open-weights agent on the τ²-bench **retail** domain, measured with pass@k and pass^k.
 
 - **Agent:** Google ADK, model `gpt-oss-120b` served behind an OpenAI-compatible endpoint (via LiteLLM).
-- **Environment and scoring:** τ²-bench retail (simulated user, mock database, official evaluator), driven through τ²'s Gymnasium interface.
+- **Environment and scoring:** τ²-bench retail tasks, policy and database, with the environment, simulated user and scorer reimplemented natively in ADK (τ² code runs only in tests that check agreement).
+- **Conditions:** `A0_bare` (no policy), `A_baseline` (policy in the prompt), `B_skills` (policy + skills), `C_skills_only` (skills carry the rules).
 - **Skills:** Agent Skills format, loaded by ADK's `SkillToolset`.
 - **Tracking:** Weights & Biases, plus result files committed to this repo.
 

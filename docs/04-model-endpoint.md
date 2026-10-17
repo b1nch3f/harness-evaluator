@@ -30,7 +30,10 @@ Set in `.env` (see `.env.example`):
 - `AGENT_MODEL`: LiteLLM model string, for example `openai/gpt-oss-120b` for an OpenAI-compatible endpoint, or the provider's own LiteLLM prefix.
 - `AGENT_API_BASE`, `AGENT_API_KEY`
 - `AGENT_TEMPERATURE` (default 0.0), `AGENT_REASONING_EFFORT` (low | medium | high; fixed for the experiment)
-- `USER_MODEL`, `USER_API_BASE`, `USER_API_KEY`, `USER_TEMPERATURE`: the τ² user simulator. Use a strong model (τ²'s published results use gpt-4.1) for comparability; a self-hosted or cheaper simulator lowers cost but makes scores incomparable with published numbers.
+- `USER_MODEL`, `USER_API_BASE`, `USER_API_KEY`, `USER_TEMPERATURE`, `USER_REASONING_EFFORT`: the simulated user. This experiment uses gpt-oss-120b on the same endpoint.
+- `JUDGE_MODEL`, `JUDGE_API_BASE`, `JUDGE_API_KEY`, `JUDGE_REASONING_EFFORT`: the assertion judge (temperature fixed at 0). Defaults to the user-simulator settings.
+- The RunPod vLLM worker needs `ENABLE_AUTO_TOOL_CHOICE=true` and `TOOL_CALL_PARSER=openai`. Running workers keep old settings after a change; terminate them so new ones start.
+- Scores are not comparable with published τ² results (they use gpt-4.1 as user and judge, and τ²'s own harness).
 
 ## Rough cost for phase 1
 

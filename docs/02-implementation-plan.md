@@ -2,92 +2,78 @@
 
 Build in milestone order. Each milestone ends with an acceptance check; do not start the next one until it passes.
 
-Facts below were checked against the source of `sierra-research/tau2-bench` at commit `96a3ef92329baf908ffe9dfe188cea34e8701d2a` (v1.0.1, 2026-10-15) and `google/adk-python` main as of 2026-10-17 (version 2.12.0). If the installed versions differ, re-check the APIs named here before relying on them.
+The harness is **ADK-native**: the retail environment, the simulated user and the scorer are our own code. τ²-bench (`sierra-research/tau2-bench` at commit `96a3ef92329baf908ffe9dfe188cea34e8701d2a`, v1.0.1) is the reference for their behavior and the source of the data files; its code runs only in tests. ADK facts below were checked against google-adk 2.12.0.
 
-## M1. Project skeleton
+## M1. Project skeleton (done)
 
-- `uv init` a package named `skills_builder` with a `src/` layout. Python `>=3.12,<3.14`.
-- Dependencies, pinned exactly in `pyproject.toml`:
-  - `google-adk`: latest release that includes `google.adk.tools.skill_toolset.SkillToolset` and `google.adk.skills.load_skills_from_dir`.
-  - `litellm` (used by ADK's `LiteLlm` wrapper).
-  - `tau2` from git: `tau2 @ git+https://github.com/sierra-research/tau2-bench@96a3ef92329baf908ffe9dfe188cea34e8701d2a`. If installing from git fails, vendor it as a git submodule under `third_party/tau2-bench` and add it as a path dependency.
-  - `wandb`, `python-dotenv`, `pydantic`, `typer` (CLI), `pytest` (dev).
-- `.env` loaded at startup (see `.env.example`).
-- CLI entry point: `uv run sb ...`.
+- `uv` package `skills_builder`, `src/` layout, Python 3.12 (τ² imports `audioop`, removed in 3.13).
+- Pinned: `google-adk==2.12.0`, `litellm==1.82.6`, `wandb==0.28.1`, `python-dotenv`, `pydantic`, `typer`, `pytest` (dev). `tau2` (git, pinned commit) is a **dev** dependency, used only by tests. Notes: litellm is held below 1.82.7 by tau2; newer wandb conflicts with ADK's opentelemetry pin.
+- τ²-bench is a git submodule at `third_party/tau2-bench`, pinned to the commit above, for its data files.
+- `.env` loaded at startup; CLI entry point `uv run sb ...`.
 
-**Accept:** `uv sync` succeeds; `uv run python -c "import tau2, google.adk; from google.adk.tools.skill_toolset import SkillToolset"` succeeds.
+**Accept:** `uv sync` succeeds; `import google.adk; from google.adk.tools.skill_toolset import SkillToolset` succeeds.
 
-## M2. τ² data and task labels
+## M2. Data and task labels (done)
 
-- τ² retail data ships inside the τ² package/repo: `data/tau2/domains/retail/` contains `tasks.json` (114 tasks), `split_tasks.json` (`train`: 74, `test`: 40, `base`: 114), `policy.md`, and `db.json`. Locate it through τ²'s own data-dir resolution; do not copy it into this repo.
-- Write `sb labels` to produce `data/labels/retail.json`: for each task, its split, intent labels, width and depth as defined in `docs/01-experiment-protocol.md`. Commit this file.
+- Read from `third_party/tau2-bench/data/tau2/domains/retail/`: `tasks.json` (114), `split_tasks.json` (`train` 74, `test` 40), `policy.md`, `db.json`; and `data/tau2/user_simulator/simulation_guidelines.md`. Do not copy them into this repo.
+- `sb labels` writes `data/labels/retail.json`: per task, split, intent labels, width (distinct write intents) and depth (expected actions). Committed.
 
-**Accept:** label counts on train match: `modify_items` 20, `return` 23, `exchange` 19, `cancel` 13, `modify_order_address` 13, `modify_user_address` 6, `transfer` 2, `modify_payment` 0, `answer` 25.
+**Accept:** train label counts: `modify_items` 20, `return` 23, `exchange` 19, `cancel` 13, `modify_order_address` 13, `modify_user_address` 6, `transfer` 2, `modify_payment` 0, `answer` 25.
 
-## M3. Model connection
+## M3. Model connection (done)
 
-- Build the model with ADK's LiteLLM wrapper: `google.adk.models.lite_llm.LiteLlm(model=AGENT_MODEL, api_base=AGENT_API_BASE, api_key=AGENT_API_KEY, temperature=..., **extra)`. `LiteLlm.__init__(model, **kwargs)` forwards kwargs to `litellm.completion`.
-- Reasoning effort for gpt-oss is passed through as a completion argument; confirm the exact parameter name your endpoint accepts (often `reasoning_effort`, sometimes inside `extra_body`).
-- `sb ping` sends one chat request and one tool-call request and prints the parsed tool call.
+- `google.adk.models.lite_llm.LiteLlm(model=AGENT_MODEL, api_base=..., api_key=..., temperature=..., extra_body={"reasoning_effort": ...})`. LiteLLM rejects `reasoning_effort` as a top-level argument for generic OpenAI-compatible models; vLLM accepts it in the body.
+- The RunPod vLLM endpoint needs `ENABLE_AUTO_TOOL_CHOICE=true` and `TOOL_CALL_PARSER=openai`, or tool calls are silently dropped.
+- `sb ping` sends one chat and one tool-call request and prints the parsed tool call.
 
 **Accept:** `sb ping` returns a valid, parsed tool call from gpt-oss-120b.
 
-## M4. Harness: ADK agent driven by the τ² gym
+## M4. ADK-native retail harness
 
-### Why the gym
+### Environment (`skills_builder/retail/`)
 
-τ²'s evaluator scores the conversation's tool calls and final database state, so every domain tool call must be executed by τ²'s orchestrator. τ²'s Gymnasium interface (`tau2.gym.gym_agent.AgentGymEnv`, registered by `tau2.gym.register_gym_agent()`) lets external code act as the agent while τ² runs the user simulator, executes tools and evaluates.
+- **Database:** pydantic models for products, variants, users, addresses, payment methods (credit card, PayPal, gift card), orders, order items, payments, fulfillments, matching τ²'s `tau2/domains/retail/data_model.py`. Loaded fresh from `db.json` for every episode.
+- **Tools:** the 15 retail tools (`calculate`, `cancel_pending_order`, `exchange_delivered_order_items`, `find_user_id_by_name_zip`, `find_user_id_by_email`, `get_order_details`, `get_product_details`, `get_item_details`, `get_user_details`, `list_all_product_types`, `modify_pending_order_address`, `modify_pending_order_items`, `modify_pending_order_payment`, `modify_user_address`, `return_delivered_order_items`, `transfer_to_human_agents`) as ADK `FunctionTool`s bound to the episode's database. Same names, arguments, descriptions, checks and state changes as τ²'s `tau2/domains/retail/tools.py`, **including its quirks** (for example, `modify_pending_order_items` gives every modified item the price and options of the last new item), because expected actions are replayed with the same logic.
+- **Tool results:** a returned record goes back as its JSON; a failed check returns `{"error": "<message>"}` and counts as a tool error.
 
-### Gym facts (from the source)
+### Conversation loop
 
-- `AgentGymEnv(domain=..., task_id=..., max_steps=100, solo_mode=False, user_llm=..., user_llm_args=...)`.
-- `reset()` returns `(observation, info)`; `info` includes `tools`, `policy`, and `simulation_run` when available.
-- `step(action: str)` returns `(observation, reward, terminated, truncated, info)`. `action` is either:
-  - a JSON tool call: `{"name": "get_order_details", "arguments": {"order_id": "#W123"}}` (functional syntax also parses), executed against the environment; or
-  - plain text, sent to the simulated user.
-- The observation is the **whole conversation as one string**, one `role: content` line per message. Tool calls are rendered in functional form.
-- The reward is τ²'s standard evaluation of the finished conversation; it is 0.0 until the simulation ends.
-- The gym agent adds a `done` tool; the conversation also ends when the user simulator stops.
+1. Fresh database. The agent session is seeded with the greeting "Hi! How can I help you today?".
+2. **Simulated user:** an ADK `LlmAgent` with no tools. System prompt = τ²'s user-simulator layout: `simulation_guidelines.md`, then `<scenario>` with the task's user scenario formatted as τ² does. It sees the agent's messages as user messages.
+3. Turn: the user's message goes to the agent's `runner.run_async(...)`; ADK runs tool calls natively against the episode database; the agent's final text goes to the user simulator. Repeat.
+4. **End:** user message contains `###STOP###`, `###TRANSFER###` or `###OUT-OF-SCOPE###`; or steps reach `MAX_STEPS` (a text message is 1 step, a tool call with its result 2, as in τ²'s orchestrator); or 10 tool errors; or the agent sends an empty message (agent error).
+5. Agent: ADK `LlmAgent` with the condition's prompt file as `instruction` (a callable, so ADK does no `{placeholder}` injection), the 15 retail tools, plus `SkillToolset(skills=load_skills_from_dir(<skills dir>))` for `B_skills` and `C_skills_only` (default lazy discovery: the model calls `list_skills`, then `load_skill`). A `before_model_callback` removes ADK's identity line so the prompt is exactly the file.
+6. Fresh `InMemoryRunner` session per episode for the agent and for the user.
+7. The episode log records every message, every tool call with arguments and result, every skill-tool call, model-call counts and token usage, termination reason, and the score breakdown.
 
-### Bridge design
+### Scorer
 
-1. For each episode, create the gym env for one task and `reset()`.
-2. Build an ADK `LlmAgent`:
-   - `instruction` = τ²'s prompt, reproduced exactly: `tau2.agent.llm_agent.SYSTEM_PROMPT.format(agent_instruction=AGENT_INSTRUCTION, domain_policy=<retail policy>)`.
-   - `model` = the LiteLlm from M3.
-   - `tools` = one proxy tool per τ² retail tool (from `info["tools"]`), plus `SkillToolset` in condition `B_skills`.
-3. **Proxy tools:** subclass `google.adk.tools.base_tool.BaseTool`. `_get_declaration()` returns a `google.genai.types.FunctionDeclaration` built from τ²'s own tool name, description and JSON schema (do not regenerate schemas from Python signatures). `run_async(args, tool_context)` calls `env.step(json.dumps({"name": ..., "arguments": args}))` and returns the tool result from the new observation. Prefer reading the newest tool message as a structured object if the gym exposes the message list; otherwise parse the last observation line.
-4. **One user turn = one ADK run:** send the user's latest message to `runner.run_async(...)`, let ADK execute proxy tool calls (each one an `env.step`) and skill tools (local), take ADK's final text reply, and send it with `env.step(text)`. The returned observation holds the user's next message. Repeat until `terminated`.
-5. ADK keeps its own session history, so pass ADK **only the new user message** each turn, never the gym's full observation string.
-6. Skill tools (`list_skills`, `load_skill`, `load_skill_resource`, etc.) never go to `env.step`. Log every skill-tool call per episode; it feeds the routing diagnostics.
-7. Use `google.adk.runners.InMemoryRunner` with a fresh session per episode.
-8. If ADK returns both text and a tool call in one turn, follow τ²'s rule (one or the other per turn): execute the tool call and drop the text.
+- **Database check:** fresh database, apply the task's expected actions with the same tool code (skip any that raise), compare with the agent's final database (canonical JSON of the whole database).
+- **Assertion check:** for tasks with `nl_assertions`, one judge call with τ²'s judge prompt (`tau2/evaluator/evaluator_nl_assertions.py`), conversation rendered as `role: content` lines; every returned `metExpectation` must be true. Parse failures retry up to 3 times, then count as an infrastructure error (not a model failure).
+- Reward = database check × assertion check.
 
-### Skills in condition `B_skills`
+### Prompts
 
-```python
-from google.adk.skills import load_skills_from_dir
-from google.adk.tools.skill_toolset import SkillToolset
-toolset = SkillToolset(skills=load_skills_from_dir("skills/retail"))
-```
+- `prompts/A0_bare.md`: `<instructions>` + τ²'s agent instruction.
+- `prompts/A_baseline.md`: τ²'s layout, `<instructions>` + `<policy>`, with `{policy}` filled from `policy.md` at load time. `B_skills` uses the same file.
+- `prompts/C_skills_only.md`: written by the skill author when C starts.
 
-`load_skills_from_dir` loads every subfolder that contains `SKILL.md`. Keep the default lazy discovery (the model calls `list_skills`). Scripts under a skill's `scripts/` may only compute values; they must not touch τ² state.
-
-**Accept:** one train task runs end to end with each condition; the τ² reward is reported; the episode log shows every domain tool call executed through `env.step`.
+**Accept:** one train task runs end to end in `A_baseline` and in `B_skills` (with a test fixture skill, since `skills/retail/` is empty until M9); the reward and its breakdown are reported; the log shows every tool call and its result.
 
 ## M5. Pre-flight checks
 
-1. **Adapter parity:** run 10 train tasks, 1 trial, with the ADK harness in `A_baseline`, and the same 10 with τ²'s own CLI (`tau2 run --domain retail --agent-llm <model> --agent-llm-args '{"api_base": ..., "api_key": ...}' --user-llm <sim> --task-split-name train --task-ids ...`). Scores should match within noise. A large gap means the bridge is wrong.
-2. **Tool-call health:** in those runs, zero tool-call parse errors.
-3. **Noise floor:** run `A_baseline` on all 74 train tasks twice with `n = 4`; record the difference in pass^1 and pass^4.
+1. **Tool parity (test, uses τ² code):** for every expected action in all 114 tasks, run it on our database and on τ²'s, starting from fresh copies; results and resulting databases must match. Plus targeted error cases (non-pending order, wrong payment method, insufficient gift-card balance).
+2. **Scorer agreement (test, uses τ² code):** for a set of trajectories (the expected actions themselves, expected actions with one action dropped or changed, and real logged episodes), our database check must give the same result as τ²'s `EnvEvaluator`.
+3. **Tool-call health:** in 10 `A_baseline` train episodes, zero tool-call parse errors.
+4. **Noise floor:** run `A_baseline` on all 74 train tasks twice with `n = 4`; record the difference in pass^1 and pass^4.
 
-**Accept:** all three recorded in `results/preflight/`.
+**Accept:** 1 and 2 pass in `uv run pytest`; 3 and 4 recorded in `results/preflight/`.
 
 ## M6. Eval runner
 
-`uv run sb eval --condition {A_baseline,B_skills} --split train --trials 8 [--skills-dir skills/retail] [--tasks half:scoring --seed 17] [--concurrency 16] [--final]`
+`uv run sb eval --condition {A0_bare,A_baseline,B_skills,C_skills_only} --split train --trials 8 [--skills-dir skills/retail] [--tasks half:scoring --seed 17] [--concurrency 16] [--final]`
 
-- Runs every selected task `n` times with bounded concurrency (threads or processes; one gym env per episode).
+- Runs every selected task `n` times with bounded concurrency (one episode per worker thread, each with its own event loop and database).
 - Retries an episode on transport errors (not on model failures), up to 3 times, and records retries.
 - `--split test` is refused without `--final`.
 - `--tasks half:authoring|half:scoring --seed S` selects the halves defined in the protocol.
@@ -95,7 +81,7 @@ toolset = SkillToolset(skills=load_skills_from_dir("skills/retail"))
   - `config.json`: everything listed in CLAUDE.md rule 7
   - `summary.json`: pass@k and pass^k (k = 1, 2, 4, 8), overall, per intent, per width, per depth, with bootstrap CIs
   - `per_task.csv`: task id, labels, successes, trials, pass@k, pass^k
-  - `failures/` (**train only**): one JSON per failed episode (full message list, tool calls, tool results, skills loaded, reward breakdown)
+  - `failures/` (**train only**): one JSON per failed episode (full message list, tool calls, tool results, skills loaded, score breakdown)
   - `summary.md`: a short human-readable table
 - `run_id` format: `<date>_<condition>_<skills-version-or-none>_<split>_n<trials>`.
 
@@ -128,9 +114,9 @@ Also add a short section for the final test run, which requires the user to say 
 
 ## M9. Hand-off to the skill author
 
-- Run `A_baseline` on all of train with `n = 8`; commit the results.
+- Run `A0_bare` and `A_baseline` on all of train with `n = 8`; commit the results.
 - Create an empty `skills/retail/` with a `README.md` pointing to `docs/03-skill-authoring-loop.md`.
-- Push, then tell the skill author the run id.
+- Push, then tell the skill author the run ids.
 
 ## Out of scope here
 

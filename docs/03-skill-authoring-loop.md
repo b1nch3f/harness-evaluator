@@ -35,10 +35,15 @@ Each `SKILL.md` has YAML frontmatter (`name`, `description` saying when to use i
 
 Keep each `SKILL.md` under 300 lines; move detail into `references/`.
 
+## Two skill conditions
+
+- **`B_skills`:** the full policy stays in the system prompt; skills add procedure, ordering, checks and edge cases.
+- **`C_skills_only`:** the system prompt holds only the agent instruction and a few cross-cutting rules (authenticate first, explicit confirmation before any change, one user per conversation, no invented information, when to transfer), in `prompts/C_skills_only.md`. Each skill carries the policy rules for its intent, because the agent sees them only after loading the skill. Written by the author once `B_skills` iteration has started; same iteration and acceptance rules.
+
 ## Rules for the author
 
 1. **No record-specific content.** No user IDs, names, emails, order or item IDs, product option values, or amounts from any task. Skills hold rules and procedures only. Every edit is checked for this before commit.
 2. **Never read test results or test trajectories.**
 3. **One target per iteration,** so each accepted gain can be attributed.
-4. **Don't copy the policy wholesale.** The policy is already in the system prompt; skills add procedure, ordering, checks and edge cases that the policy leaves implicit.
+4. **Don't copy the policy wholesale (B).** In `B_skills` the policy is already in the system prompt; skills add procedure, ordering, checks and edge cases that the policy leaves implicit. In `C_skills_only`, each skill must include the rules for its own intent.
 5. **Record the author** in each commit: these are skills written by a strong external model, which matters when comparing with self-generated skills later.
