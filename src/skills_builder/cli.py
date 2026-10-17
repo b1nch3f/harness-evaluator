@@ -25,5 +25,17 @@ def info() -> None:
         typer.echo(f"{pkg}=={version(pkg)}")
 
 
+@app.command()
+def labels() -> None:
+    """Write data/labels/retail.json and print label counts per split."""
+    from skills_builder.labels import LABELS_PATH, label_counts, write_labels
+
+    rows = write_labels()
+    typer.echo(f"wrote {LABELS_PATH.relative_to(LABELS_PATH.parents[2])} ({len(rows)} tasks)")
+    for split in ("train", "test"):
+        n = sum(1 for r in rows.values() if r["split"] == split)
+        typer.echo(f"{split} ({n} tasks): {label_counts(rows, split)}")
+
+
 if __name__ == "__main__":
     app()

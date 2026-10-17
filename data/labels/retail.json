@@ -1,0 +1,981 @@
+{
+  "0": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "1": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "2": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "return"
+    ],
+    "width": 1,
+    "depth": 11
+  },
+  "3": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 12
+  },
+  "4": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 13
+  },
+  "5": {
+    "split": "test",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "6": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "7": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "8": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "9": {
+    "split": "test",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "10": {
+    "split": "train",
+    "labels": [
+      "transfer"
+    ],
+    "width": 0,
+    "depth": 5
+  },
+  "11": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "12": {
+    "split": "test",
+    "labels": [
+      "transfer"
+    ],
+    "width": 0,
+    "depth": 5
+  },
+  "13": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "14": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "15": {
+    "split": "train",
+    "labels": [
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 7
+  },
+  "16": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "cancel",
+      "return"
+    ],
+    "width": 2,
+    "depth": 9
+  },
+  "17": {
+    "split": "test",
+    "labels": [
+      "modify_order_address"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "18": {
+    "split": "test",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "19": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "return"
+    ],
+    "width": 1,
+    "depth": 7
+  },
+  "20": {
+    "split": "train",
+    "labels": [
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 10
+  },
+  "21": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 12
+  },
+  "22": {
+    "split": "train",
+    "labels": [
+      "modify_order_address",
+      "modify_user_address"
+    ],
+    "width": 2,
+    "depth": 7
+  },
+  "23": {
+    "split": "train",
+    "labels": [
+      "exchange",
+      "modify_items"
+    ],
+    "width": 2,
+    "depth": 12
+  },
+  "24": {
+    "split": "train",
+    "labels": [
+      "answer"
+    ],
+    "width": 0,
+    "depth": 0
+  },
+  "25": {
+    "split": "train",
+    "labels": [],
+    "width": 0,
+    "depth": 6
+  },
+  "26": {
+    "split": "test",
+    "labels": [
+      "return",
+      "transfer"
+    ],
+    "width": 1,
+    "depth": 8
+  },
+  "27": {
+    "split": "test",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "28": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "return"
+    ],
+    "width": 1,
+    "depth": 11
+  },
+  "29": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "30": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "cancel",
+      "return"
+    ],
+    "width": 2,
+    "depth": 13
+  },
+  "31": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "cancel",
+      "return"
+    ],
+    "width": 2,
+    "depth": 12
+  },
+  "32": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "cancel",
+      "return"
+    ],
+    "width": 2,
+    "depth": 13
+  },
+  "33": {
+    "split": "test",
+    "labels": [
+      "modify_user_address"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "34": {
+    "split": "train",
+    "labels": [
+      "modify_order_address"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "35": {
+    "split": "train",
+    "labels": [
+      "modify_items",
+      "return"
+    ],
+    "width": 2,
+    "depth": 7
+  },
+  "36": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "37": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 4
+  },
+  "38": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 4
+  },
+  "39": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "modify_user_address"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "40": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "modify_payment"
+    ],
+    "width": 1,
+    "depth": 4
+  },
+  "41": {
+    "split": "train",
+    "labels": [
+      "modify_items",
+      "modify_order_address",
+      "modify_user_address"
+    ],
+    "width": 3,
+    "depth": 10
+  },
+  "42": {
+    "split": "test",
+    "labels": [
+      "modify_items",
+      "modify_order_address",
+      "modify_user_address"
+    ],
+    "width": 3,
+    "depth": 10
+  },
+  "43": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_user_address"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "44": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "45": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "46": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "return"
+    ],
+    "width": 1,
+    "depth": 7
+  },
+  "47": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "return"
+    ],
+    "width": 1,
+    "depth": 7
+  },
+  "48": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "49": {
+    "split": "test",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 10
+  },
+  "50": {
+    "split": "train",
+    "labels": [
+      "transfer"
+    ],
+    "width": 0,
+    "depth": 1
+  },
+  "51": {
+    "split": "test",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "52": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "53": {
+    "split": "test",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "54": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "cancel",
+      "return"
+    ],
+    "width": 2,
+    "depth": 12
+  },
+  "55": {
+    "split": "test",
+    "labels": [
+      "cancel",
+      "return"
+    ],
+    "width": 2,
+    "depth": 13
+  },
+  "56": {
+    "split": "test",
+    "labels": [
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 7
+  },
+  "57": {
+    "split": "train",
+    "labels": [],
+    "width": 0,
+    "depth": 0
+  },
+  "58": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 6
+  },
+  "59": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "cancel",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 5
+  },
+  "60": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 4
+  },
+  "61": {
+    "split": "test",
+    "labels": [
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "62": {
+    "split": "test",
+    "labels": [
+      "answer"
+    ],
+    "width": 0,
+    "depth": 5
+  },
+  "63": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 7
+  },
+  "64": {
+    "split": "test",
+    "labels": [
+      "exchange",
+      "modify_items"
+    ],
+    "width": 2,
+    "depth": 8
+  },
+  "65": {
+    "split": "test",
+    "labels": [],
+    "width": 0,
+    "depth": 3
+  },
+  "66": {
+    "split": "train",
+    "labels": [
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 5
+  },
+  "67": {
+    "split": "train",
+    "labels": [
+      "answer"
+    ],
+    "width": 0,
+    "depth": 5
+  },
+  "68": {
+    "split": "test",
+    "labels": [
+      "answer"
+    ],
+    "width": 0,
+    "depth": 4
+  },
+  "69": {
+    "split": "train",
+    "labels": [
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 4
+  },
+  "70": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "71": {
+    "split": "test",
+    "labels": [
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "72": {
+    "split": "train",
+    "labels": [
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "73": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "74": {
+    "split": "test",
+    "labels": [
+      "cancel",
+      "modify_items"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "75": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "76": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 2
+  },
+  "77": {
+    "split": "test",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "78": {
+    "split": "train",
+    "labels": [
+      "cancel",
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 3,
+    "depth": 3
+  },
+  "79": {
+    "split": "test",
+    "labels": [
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "80": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "81": {
+    "split": "train",
+    "labels": [
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 2
+  },
+  "82": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "83": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "84": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "85": {
+    "split": "train",
+    "labels": [
+      "modify_items"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "86": {
+    "split": "test",
+    "labels": [
+      "modify_items",
+      "modify_user_address"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "87": {
+    "split": "train",
+    "labels": [
+      "modify_order_address",
+      "modify_user_address"
+    ],
+    "width": 2,
+    "depth": 4
+  },
+  "88": {
+    "split": "train",
+    "labels": [
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "89": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "return"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "90": {
+    "split": "test",
+    "labels": [
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "91": {
+    "split": "train",
+    "labels": [
+      "exchange",
+      "return"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "92": {
+    "split": "train",
+    "labels": [
+      "return"
+    ],
+    "width": 1,
+    "depth": 2
+  },
+  "93": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "94": {
+    "split": "test",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "95": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 2
+  },
+  "96": {
+    "split": "train",
+    "labels": [
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "97": {
+    "split": "test",
+    "labels": [
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "98": {
+    "split": "train",
+    "labels": [
+      "cancel",
+      "exchange"
+    ],
+    "width": 2,
+    "depth": 3
+  },
+  "99": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 2
+  },
+  "100": {
+    "split": "test",
+    "labels": [
+      "modify_items",
+      "return"
+    ],
+    "width": 2,
+    "depth": 2
+  },
+  "101": {
+    "split": "test",
+    "labels": [
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 3
+  },
+  "102": {
+    "split": "test",
+    "labels": [
+      "exchange",
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 3,
+    "depth": 3
+  },
+  "103": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items",
+      "modify_order_address",
+      "return"
+    ],
+    "width": 3,
+    "depth": 4
+  },
+  "104": {
+    "split": "train",
+    "labels": [
+      "answer",
+      "modify_items",
+      "modify_order_address",
+      "return"
+    ],
+    "width": 3,
+    "depth": 5
+  },
+  "105": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "106": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "107": {
+    "split": "train",
+    "labels": [
+      "exchange"
+    ],
+    "width": 1,
+    "depth": 2
+  },
+  "108": {
+    "split": "test",
+    "labels": [
+      "answer",
+      "return"
+    ],
+    "width": 1,
+    "depth": 1
+  },
+  "109": {
+    "split": "train",
+    "labels": [
+      "modify_items",
+      "modify_order_address",
+      "modify_user_address"
+    ],
+    "width": 3,
+    "depth": 3
+  },
+  "110": {
+    "split": "train",
+    "labels": [
+      "modify_items",
+      "modify_order_address",
+      "modify_user_address"
+    ],
+    "width": 3,
+    "depth": 3
+  },
+  "111": {
+    "split": "test",
+    "labels": [
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 3
+  },
+  "112": {
+    "split": "train",
+    "labels": [
+      "modify_items",
+      "modify_order_address"
+    ],
+    "width": 2,
+    "depth": 3
+  },
+  "113": {
+    "split": "train",
+    "labels": [
+      "cancel"
+    ],
+    "width": 1,
+    "depth": 2
+  }
+}

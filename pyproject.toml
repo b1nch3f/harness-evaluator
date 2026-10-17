@@ -31,3 +31,6 @@ tau2 = { git = "https://github.com/sierra-research/tau2-bench", rev = "96a3ef923
 dev = [
     "pytest==9.1.1",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
