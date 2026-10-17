@@ -5,6 +5,4 @@ __pycache__/
 .pytest_cache/
 wandb/
 runs/
-results.json
-results.lock
-results.tmp
+experiments/*/runs/

@@ -342,11 +342,8 @@ def run_episode(spec: EpisodeSpec) -> EpisodeLog:
     return asyncio.run(run_episode_async(spec))
 
 
-def default_spec(task_id: str, experiment: Experiment, trial: int = 0) -> EpisodeSpec:
-    """A spec from the experiment's config.yaml and .env."""
-    a = experiment.config.agent
-    return EpisodeSpec(
-        task_id=task_id, experiment=experiment, trial=trial,
-        max_steps=experiment.config.run.max_steps,
-        agent=agent_settings(a.profile, a.model, a.temperature, a.reasoning_effort),
-    )
+def default_spec(task_id: str, experiment: Experiment, trial: int = 0, agent_profile: str = "AGENT",
+                 max_steps: int = 100) -> EpisodeSpec:
+    """A spec with the agent from a .env profile and the user and judge from .env."""
+    return EpisodeSpec(task_id=task_id, experiment=experiment, trial=trial, max_steps=max_steps,
+                       agent=agent_settings(agent_profile))

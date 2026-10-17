@@ -1,10 +1,7 @@
-"""Experiment folders and their config.yaml."""
-
-import pytest
-import yaml
+"""Experiment folders: prompt, optional skills, and their runs."""
 
 from skills_builder import data
-from skills_builder.experiment import list_experiments, load_experiment, parse_config
+from skills_builder.experiment import list_experiments, load_experiment
 
 
 def test_the_four_experiments_exist():
@@ -35,29 +32,19 @@ def test_skill_experiments_share_their_prompts_and_start_empty():
     assert load_experiment("a0-bare").skills_dir is None
 
 
-def test_committed_configs_run_one_at_a_time_on_train():
-    for name in list_experiments():
-        c = load_experiment(name).config
-        assert c.run.concurrency == 1 and c.run.split == "train" and c.agent.profile == "AGENT"
-
-
-def test_version_covers_the_harness_not_the_config(tmp_path):
+def test_version_covers_the_harness_not_its_runs(tmp_path):
     folder = tmp_path / "x"
     folder.mkdir()
     (folder / "system_prompt.md").write_text("Be helpful.\n")
     v1 = load_experiment("x", root=tmp_path).version
-    (folder / "config.yaml").write_text(yaml.safe_dump({"run": {"trials": 8}}))
-    e = load_experiment("x", root=tmp_path)
-    assert e.version == v1 and e.config.run.trials == 8
+    (folder / "runs" / "r1").mkdir(parents=True)
+    (folder / "runs" / "r1" / "results.json").write_text("{}")
+    assert load_experiment("x", root=tmp_path).version == v1
     (folder / "system_prompt.md").write_text("Be very helpful.\n")
     assert load_experiment("x", root=tmp_path).version != v1
 
 
-def test_config_rejects_unknown_keys_and_bad_values():
-    with pytest.raises(ValueError, match="unknown keys"):
-        parse_config({"run": {"trails": 4}})
-    with pytest.raises(ValueError, match="split"):
-        parse_config({"run": {"split": "validation"}})
-    with pytest.raises(ValueError, match="seed"):
-        parse_config({"run": {"tasks": "half:scoring"}})
-    assert parse_config({"run": {"tasks": [3, 5]}}).run.tasks == ["3", "5"]
+def test_experiment_folders_hold_only_the_harness():
+    for name in list_experiments():
+        files = {p.name for p in load_experiment(name).dir.iterdir() if p.name != "runs"}
+        assert files <= {"system_prompt.md", "skills"}, (name, files)

@@ -45,7 +45,7 @@ A task can carry several labels. **Width** = number of distinct write intents in
 
 ## Experiments
 
-Each is a folder in `experiments/` with `system_prompt.md`, an optional `skills/`, and `config.yaml`.
+Each is a folder in `experiments/` with `system_prompt.md` and an optional `skills/`. Each run of it is saved in the same folder, self-contained, in `runs/<run_id>/`: `results.json` (settings, scores, per-task rewards), `summary.md` and `conversations/` (git-ignored). Run settings (model, split, trials) are `sb eval` flags, so one experiment can be run with several models.
 
 | Experiment | System prompt | Skills | Question |
 |---|---|---|---|
@@ -62,7 +62,7 @@ All experiments for one model use the same simulated user and judge, so they are
 
 | Role | What it does | Model |
 |---|---|---|
-| Agent | answers the customer, calls the 16 retail tools against a fresh copy of the database | set per experiment in `config.yaml` (a `.env` profile); gpt-oss-120b by default |
+| Agent | answers the customer, calls the 16 retail tools against a fresh copy of the database | chosen per run (`sb eval --agent PROFILE`, a `.env` profile); gpt-oss-120b by default |
 | Simulated user | plays the customer from the task's user scenario, using τ²'s user-simulator guidelines; ends with `###STOP###`, `###TRANSFER###` or `###OUT-OF-SCOPE###` | gpt-oss-120b, fixed in `.env` |
 | Judge | checks the task's natural-language assertions against the conversation, using τ²'s judge prompt | gpt-oss-120b, temperature 0, fixed in `.env` |
 

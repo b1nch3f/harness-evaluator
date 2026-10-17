@@ -1,22 +1,21 @@
-"""Experiments: one folder each under experiments/ (CLAUDE.md rule 4).
+"""Experiments: one folder each under experiments/ (CLAUDE.md rule 3).
 
     experiments/<name>/system_prompt.md   the agent's system prompt, used as written;
                                           `{policy}` is replaced with tau2's retail policy
     experiments/<name>/skills/            optional; each subfolder with a SKILL.md is a
                                           skill, given to the agent through ADK's SkillToolset
-    experiments/<name>/config.yaml        how to run it: agent model settings, split,
-                                          trials, tasks, concurrency, max steps
+    experiments/<name>/runs/              its runs (git-ignored); see runner.py
 
+How to run it (model, split, trials, ...) is given per run as `sb eval` flags.
 An experiment's version is the content hash of its harness (the prompt file
-and the skills folder; not config.yaml), plus the last commit that touched
-the folder.
+and the skills folder), plus the last commit that touched the folder.
 """
 
 from __future__ import annotations
 
 import hashlib
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from skills_builder import data
@@ -25,64 +24,7 @@ from skills_builder.config import REPO_ROOT
 EXPERIMENTS_DIR = REPO_ROOT / "experiments"
 PROMPT_FILE = "system_prompt.md"
 SKILLS_DIR = "skills"
-CONFIG_FILE = "config.yaml"
 POLICY_PLACEHOLDER = "{policy}"
-SPLITS = ("train", "test", "all")
-
-
-@dataclass(frozen=True)
-class AgentConfig:
-    profile: str = "AGENT"  # .env prefix: <PROFILE>_MODEL, <PROFILE>_API_BASE, <PROFILE>_API_KEY
-    model: str | None = None  # overrides <PROFILE>_MODEL
-    temperature: float | None = None  # overrides <PROFILE>_TEMPERATURE
-    reasoning_effort: str | None = None  # low | medium | high | none; overrides <PROFILE>_REASONING_EFFORT
-
-
-@dataclass(frozen=True)
-class RunConfig:
-    split: str = "train"  # train | test | all; test and all also need --final
-    trials: int = 4
-    tasks: str | list[str] = "all"  # all | half:authoring | half:scoring | list of task ids
-    seed: int | None = None  # required for half:*
-    concurrency: int = 1  # conversations at a time
-    max_steps: int = 100
-
-
-@dataclass(frozen=True)
-class ExperimentConfig:
-    agent: AgentConfig = field(default_factory=AgentConfig)
-    run: RunConfig = field(default_factory=RunConfig)
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-
-def parse_config(raw: dict | None) -> ExperimentConfig:
-    raw = raw or {}
-    unknown = set(raw) - {"agent", "run"}
-    if unknown:
-        raise ValueError(f"config.yaml: unknown sections {sorted(unknown)}")
-
-    def build(cls, section: str):
-        values = raw.get(section) or {}
-        allowed = set(cls.__dataclass_fields__)
-        bad = set(values) - allowed
-        if bad:
-            raise ValueError(f"config.yaml [{section}]: unknown keys {sorted(bad)}; allowed {sorted(allowed)}")
-        return cls(**values)
-
-    agent, run = build(AgentConfig, "agent"), build(RunConfig, "run")
-    if run.split not in SPLITS:
-        raise ValueError(f"config.yaml: run.split must be one of {SPLITS}")
-    if run.trials < 1 or run.concurrency < 1 or run.max_steps < 1:
-        raise ValueError("config.yaml: trials, concurrency and max_steps must be >= 1")
-    if isinstance(run.tasks, list):
-        run = RunConfig(**{**asdict(run), "tasks": [str(t) for t in run.tasks]})
-    elif run.tasks not in ("all", "half:authoring", "half:scoring"):
-        raise ValueError("config.yaml: run.tasks must be all, half:authoring, half:scoring or a list of ids")
-    if isinstance(run.tasks, str) and run.tasks.startswith("half:") and run.seed is None:
-        raise ValueError("config.yaml: run.seed is required for half:authoring / half:scoring")
-    return ExperimentConfig(agent=agent, run=run)
 
 
 @dataclass(frozen=True)
@@ -97,8 +39,7 @@ class Experiment:
     prompt_sha256: str  # sha256 of the prompt as sent (policy filled in)
     skills_sha256: str | None
     git_commit: str | None  # last commit that touched the folder
-    dirty: bool  # folder has uncommitted changes
-    config: ExperimentConfig = field(default_factory=ExperimentConfig)
+    dirty: bool  # harness or folder has uncommitted changes (runs/ is ignored)
 
     def public(self) -> dict:
         return {
@@ -110,7 +51,6 @@ class Experiment:
             "uses_policy": self.uses_policy,
             "skills_sha256": self.skills_sha256,
             "skills": list(self.skill_names),
-            "config": self.config.to_dict(),
         }
 
 
@@ -160,10 +100,6 @@ def load_experiment(name: str, root: Path = EXPERIMENTS_DIR) -> Experiment:
     else:
         skills_dir = None
 
-    import yaml
-
-    config_path = folder / CONFIG_FILE
-    config = parse_config(yaml.safe_load(config_path.read_text()) if config_path.is_file() else None)
     harness = [prompt_path, *([q for q in skills_dir.rglob("*") if q.is_file()] if skills_dir else [])]
 
     rel = folder.relative_to(REPO_ROOT).as_posix() if folder.is_relative_to(REPO_ROOT) else str(folder)
@@ -181,5 +117,4 @@ def load_experiment(name: str, root: Path = EXPERIMENTS_DIR) -> Experiment:
         skills_sha256=_files_hash(skills_dir) if skills_dir else None,
         git_commit=commit,
         dirty=bool(status),
-        config=config,
     )

@@ -4,13 +4,13 @@ An experiment to measure how much **agent skills** (SKILL.md files) and, later, 
 
 - **Agent:** Google ADK, model `gpt-oss-120b` served behind an OpenAI-compatible endpoint (via LiteLLM).
 - **Environment and scoring:** τ²-bench retail tasks, policy and database, with the environment, simulated user and scorer reimplemented natively in ADK (τ² code runs only in tests that check agreement).
-- **Experiments:** one folder each in `experiments/` (system prompt, optional skills, `config.yaml`): `a0-bare` (dummy baseline, no policy), `domain` (policy in the prompt), `skills`, `domain-skills`.
+- **Experiments:** one folder each in `experiments/` (system prompt, optional skills): `a0-bare` (dummy baseline, no policy), `domain` (policy in the prompt), `skills`, `domain-skills`.
 - **Skills:** Agent Skills format, loaded by ADK's `SkillToolset`.
-- **Results:** `results.json` and full conversation transcripts in `runs/` (both local, git-ignored); Weights & Biases later.
+- **Results:** each run is saved in its experiment's folder, `runs/<run_id>/`: `results.json`, `summary.md` and full conversation transcripts (local, git-ignored); Weights & Biases later.
 
 ```
 uv run sb experiments              # list experiments and versions
-uv run sb eval a0-bare             # run one, as set in experiments/a0-bare/config.yaml
+uv run sb eval a0-bare --trials 4  # run one (flags: --agent, --split, --tasks, --concurrency, ...)
 uv run sb results                  # every run so far
 ```
 

@@ -58,7 +58,7 @@ def agent_settings(profile: str = "AGENT", model: str | None = None, temperature
     The default profile reads AGENT_MODEL, AGENT_API_BASE, AGENT_API_KEY,
     AGENT_TEMPERATURE and AGENT_REASONING_EFFORT. Another LLM is another
     prefix, for example QWEN_MODEL, QWEN_API_BASE, QWEN_API_KEY. Arguments
-    given here (from an experiment's config.yaml) override the .env values.
+    given here (the `sb eval` flags) override the .env values.
     """
     p = profile.upper()
     effort = _effort(f"{p}_REASONING_EFFORT", "medium")

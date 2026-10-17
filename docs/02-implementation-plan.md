@@ -7,7 +7,7 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 ## M1. Project skeleton (done)
 
 - `uv` package `skills_builder`, `src/` layout, Python 3.12 (τ² imports `audioop`, removed in 3.13).
-- Pinned: `google-adk==2.12.0`, `litellm==1.82.6`, `wandb==0.28.1`, `pyyaml==6.0.3`, `python-dotenv`, `pydantic`, `typer`, `pytest` (dev). `tau2` (git, pinned commit) is a **dev** dependency, used only by tests. Notes: litellm is held below 1.82.7 by tau2; newer wandb conflicts with ADK's opentelemetry pin.
+- Pinned: `google-adk==2.12.0`, `litellm==1.82.6`, `wandb==0.28.1`, `python-dotenv`, `pydantic`, `typer`, `pytest` (dev). `tau2` (git, pinned commit) is a **dev** dependency, used only by tests. Notes: litellm is held below 1.82.7 by tau2; newer wandb conflicts with ADK's opentelemetry pin.
 - τ²-bench is a git submodule at `third_party/tau2-bench`, pinned to the commit above, for its data files.
 - `.env` loaded at startup; CLI entry point `uv run sb ...`.
 
@@ -54,28 +54,30 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 
 ### Experiments
 
-- `experiments/<name>/system_prompt.md`, optional `skills/`, `config.yaml` (see CLAUDE.md rule 3).
+- `experiments/<name>/system_prompt.md` and optional `skills/` (see CLAUDE.md rule 3).
 - `a0-bare`: `<instructions>` + τ²'s agent instruction. `domain`: τ²'s layout, `<instructions>` + `<policy>`, with `{policy}` filled from `policy.md` at load time (a test checks it equals τ²'s own agent prompt). `skills` and `domain-skills` reuse those prompts and have empty `skills/` folders.
 
 **Accept (met):** one train task ran end to end with the policy prompt (reward 1.0) and with a fixture skill (ran; reward 0, a model error); the log shows every tool call and its result.
 
 ## M5. Eval runner (done)
 
-`uv run sb eval <experiment> [--split train|test|all] [--trials N] [--tasks all|half:authoring|half:scoring|0,5,12] [--agent PROFILE] [--final] [--allow-dirty]`
+```
+uv run sb eval <experiment> [--agent AGENT] [--model M] [--temperature T] [--reasoning-effort E]
+                            [--split train|test|all] [--trials 4] [--tasks all|half:authoring|half:scoring|0,5,12]
+                            [--seed S] [--concurrency 1] [--max-steps 100] [--final] [--allow-dirty]
+```
 
-- Settings come from `experiments/<name>/config.yaml`; the flags override them for one run.
-  ```yaml
-  agent: {profile: AGENT, temperature: 0.0, reasoning_effort: medium}   # profile = .env prefix
-  run: {split: train, trials: 4, tasks: all, seed: null, concurrency: 1, max_steps: 100}
-  ```
-- One conversation at a time unless `run.concurrency` > 1 (then a thread pool, one event loop and database per episode).
+- Every setting is a flag with a default; an experiment folder holds only its harness, so the same experiment runs with any model or settings.
+- One conversation at a time unless `--concurrency` > 1 (then a thread pool, one event loop and database per episode).
 - Refuses: test tasks without `--final`; an experiment folder with uncommitted changes (unless `--allow-dirty`); a skills folder with no skills.
 - Retries an episode on exceptions (transport errors, unparseable judge replies), up to 3 attempts, and records them; a low reward is never retried. Five consecutive failed episodes abort the run.
-- Writes `runs/<run_id>/` (git-ignored): `config.json` (CLAUDE.md rule 8), `result.json`, `summary.md`, and `conversations/<task>_t<trial>.json` + `.md` for every **train** episode. Test conversations are not written.
-- Appends the run to `results.json` (git-ignored, file-locked): config, scores per split (pass@k and pass^k for k = 1, 2, 4, 8 with bootstrap CIs; per intent, width and depth), per-task rewards and endings, episode counts, token usage.
-- `run_id` = `<UTC time>_<experiment>_<version[:8]>_<agent model>_<split>_n<trials>`.
-- `sb results` lists all runs; `sb experiments` lists experiments and versions.
-- Other LLMs: add `<PROFILE>_MODEL`, `<PROFILE>_API_BASE`, `<PROFILE>_API_KEY` to `.env` and set `agent.profile` (or `--agent PROFILE`). The simulated user and judge stay fixed.
+- Each run is self-contained in `experiments/<name>/runs/<run_id>/` (git-ignored):
+  - `results.json`: settings, experiment version and hashes, models (CLAUDE.md rule 8), status, episode counts, token usage, scores per split (pass@k and pass^k for k = 1, 2, 4, 8 with bootstrap CIs; per intent, width and depth), per-task rewards and endings. Written at the start (`status: running`) and completed at the end.
+  - `summary.md`: the same, readable.
+  - `conversations/<task>_t<trial>.json` + `.md` for every **train** episode. Test conversations are not written.
+- `run_id` = `<UTC time>_<version[:8]>_<agent model>_<split>_n<trials>`.
+- `sb results` lists completed runs of every experiment (from each run's `results.json`); `sb experiments` lists experiments and versions.
+- Other LLMs: add `<PROFILE>_MODEL`, `<PROFILE>_API_BASE`, `<PROFILE>_API_KEY` to `.env` and pass `--agent PROFILE`. The simulated user and judge stay fixed.
 
 **Accept (met, offline):** with scripted models, a run writes all files; pass^k recomputed from per-task counts matches the summary; test tasks are refused without `--final` and never saved; retries and aborts behave as above; parallel and sequential runs agree.
 
@@ -86,14 +88,14 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 3. **Tool-call health:** `sb eval a0-bare --tasks <10 train ids> --trials 1`: zero tool-call parse errors (10 conversations).
 4. **Noise floor:** `a0-bare` on train, `n = 4`, twice (2 × 296 conversations); record the difference in pass^1 and pass^4.
 
-**Accept:** 3 and 4 recorded in `results.json`, with the noise floor written into `docs/01-experiment-protocol.md`.
+**Accept:** 3 and 4 recorded as runs in `experiments/a0-bare/runs/`, with the noise floor written into `docs/01-experiment-protocol.md`.
 
 ## M7. Weights & Biases
 
 - One W&B run per eval run; project `automatic-agent-skills-builder`; `config` = the run's `config.json`.
 - Log pass@k and pass^k for each k, overall and per intent, plus a per-task table.
 - Log the experiment's harness as an artifact versioned by its hash. Group runs by experiment; tag with the agent model.
-- W&B is the off-machine copy of `results.json`.
+- W&B is the off-machine copy of the runs' `results.json` files.
 
 **Accept:** two runs appear in W&B with comparable pass^k charts.
 

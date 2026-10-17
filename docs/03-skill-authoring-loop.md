@@ -5,16 +5,16 @@ A harness is an experiment folder's `system_prompt.md` plus its `skills/`. Tunin
 ## Where things are
 
 - Harnesses: `experiments/<name>/` (committed).
-- Results: `results.json` and `runs/<run_id>/` (git-ignored, on the owner's machine). Each run has `summary.md` and, for train tasks, `conversations/<task>_t<trial>.md`: the full conversation, tool calls and results, skills loaded, the customer's goal, the expected actions and the score breakdown.
+- Results: `experiments/<name>/runs/<run_id>/` (git-ignored, on the owner's machine). Each run has `results.json`, `summary.md` and, for train tasks, `conversations/<task>_t<trial>.md`: the full conversation, tool calls and results, skills loaded, the customer's goal, the expected actions and the score breakdown.
 - Because results are local, an author without access to the owner's machine gets the failure transcripts from the owner.
 
 ## One iteration
 
-1. **Owner:** runs `sb eval <experiment> --tasks half:authoring` and `--tasks half:scoring` with the iteration's seed (in `config.yaml`, `run.seed`).
+1. **Owner:** runs `sb eval <experiment> --tasks half:authoring` and `--tasks half:scoring` with the iteration's `--seed`.
 2. **Author:** reads `summary.md` and the failed transcripts from the **authoring half only**, picks one intent to work on (normally the weakest by pass^4) and states a hypothesis.
 3. **Author:** edits one skill (or a small related set, or the prompt) and commits with a message naming the target intent and the hypothesis.
 4. **Owner:** runs the scoring half for the new version.
-5. **Accept or reject** (rule in the protocol). An accepted version is tagged `<experiment>-vN`. A rejected one is reverted; its result stays in `results.json`.
+5. **Accept or reject** (rule in the protocol). An accepted version is tagged `<experiment>-vN`. A rejected one is reverted; its run stays in the experiment's `runs/`.
 
 ## Skill layout
 
