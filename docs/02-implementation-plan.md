@@ -95,7 +95,7 @@ uv run sb eval <experiment> --resume <run_id>|last
 
 ## M7. Weights & Biases
 
-- One W&B run per eval run; project `automatic-agent-skills-builder`; `config` = the run's `config.json`.
+- One W&B run per eval run; project `agent-harness-builder`; `config` = the run's `config.json`.
 - Log pass@k and pass^k for each k, overall and per intent, plus a per-task table.
 - Log the experiment's harness as an artifact versioned by its hash. Group runs by experiment; tag with the agent model.
 - W&B is the off-machine copy of the runs' `results.json` files.

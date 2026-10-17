@@ -1,4 +1,4 @@
-# automatic-agent-skills-builder
+# agent-harness-builder
 
 An experiment to measure how much **agent skills** (SKILL.md files) and, later, **model tuning** improve an open-weights agent on the τ²-bench **retail** domain, measured with pass@k and pass^k.
 
