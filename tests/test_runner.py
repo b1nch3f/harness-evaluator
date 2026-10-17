@@ -140,3 +140,49 @@ def test_halves_split_train_and_depend_on_seed():
     assert not set(h["half:authoring"]) & set(h["half:scoring"])
     assert len(h["half:authoring"]) == 37
     assert halves(18) != h and halves(17) == h
+
+
+def test_resume_finishes_an_aborted_run_without_redoing_episodes(exp):
+    inner = scripted_spec(exp, succeed_on=lambda tid, trial: True)
+    calls = []
+    budget = {"left": 3}  # credits run out after 3 conversations
+
+    def metered(tid, trial):
+        if budget["left"] == 0:
+            raise InfraError("402 insufficient balance")
+        budget["left"] -= 1
+        calls.append((tid, trial))
+        return inner(tid, trial)
+
+    settings = RunSettings(trials=4, tasks=tuple(NO_JUDGE_TRAIN))
+    first = run_eval(exp, settings, make_spec=metered, **QUIET)
+    assert first["status"] == "aborted" and first["episodes"]["completed"] == 3
+    assert load_runs(exp.dir.parent) == []
+
+    budget["left"] = 100  # topped up
+    calls.clear()
+    second = run_eval(exp, RunSettings(trials=1), resume="last", make_spec=metered, **QUIET)
+    assert second["run_id"] == first["run_id"] and second["status"] == "complete"
+    assert len(calls) == 5  # only the 8 - 3 unfinished episodes ran
+    assert second["settings"]["trials"] == 4  # the run's own settings, not the new flags
+    assert all(p["trials"] == 4 and p["rewards"] == [1.0] * 4 for p in second["per_task"].values())
+    assert second["episodes"]["infra_failed"] == 0 and len(second["resumed_at"]) == 1
+    assert [r["run_id"] for r in load_runs(exp.dir.parent)] == [first["run_id"]]
+    conv = exp.dir / "runs" / first["run_id"] / "conversations"
+    assert len(list(conv.glob("*.json"))) == 8
+
+    with pytest.raises(RunRefused, match="already complete"):
+        run_eval(exp, resume=first["run_id"], make_spec=metered, **QUIET)
+
+
+def test_resume_refuses_a_changed_harness(exp):
+    def down(tid, trial):
+        raise InfraError("503")
+
+    first = run_eval(exp, RunSettings(trials=4, tasks=tuple(NO_JUDGE_TRAIN)), make_spec=down, **QUIET)
+    (exp.dir / "system_prompt.md").write_text("Something else.\n")
+    changed = replace(load_experiment("domain", root=exp.dir.parent), dirty=False)
+    with pytest.raises(RunRefused, match="changed since"):
+        run_eval(changed, resume=first["run_id"], make_spec=scripted_spec(changed), **QUIET)
+    with pytest.raises(RunRefused, match="no run"):
+        run_eval(exp, resume="nope", make_spec=down, **QUIET)

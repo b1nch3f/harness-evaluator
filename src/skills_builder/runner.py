@@ -6,6 +6,7 @@ folder (git-ignored):
 
     experiments/<name>/runs/<run_id>/results.json   settings, scores and per-task rewards
     experiments/<name>/runs/<run_id>/summary.md     the same, readable
+    experiments/<name>/runs/<run_id>/episodes.jsonl progress: one line per finished episode (for --resume)
     experiments/<name>/runs/<run_id>/conversations/<task>_t<n>.json   full log (train tasks only)
     experiments/<name>/runs/<run_id>/conversations/<task>_t<n>.md     the same, readable
 """
@@ -162,24 +163,74 @@ def run_with_retries(make_spec: Callable[[str, int], EpisodeSpec], task_id: str,
     return EpisodeResult(task_id, trial, None, errors)
 
 
+EPISODES_FILE = "episodes.jsonl"  # one line per finished episode (no conversation text)
+
+
+def find_run(exp: Experiment, run_id: str) -> Path:
+    """A run folder of this experiment; `last` = the newest run that did not complete."""
+    runs = exp.dir / RUNS_DIR
+    if run_id == "last":
+        open_runs = [p.parent for p in runs.glob(f"*/{RESULTS_FILE}")
+                     if json.loads(p.read_text()).get("status") != "complete"]
+        if not open_runs:
+            raise RunRefused(f"experiments/{exp.name} has no unfinished run to resume")
+        return max(open_runs, key=lambda p: p.name)
+    path = runs / run_id
+    if not (path / RESULTS_FILE).is_file():
+        raise RunRefused(f"no run {run_id!r} in experiments/{exp.name}/runs/")
+    return path
+
+
+def _settings_from_record(record: dict) -> RunSettings:
+    st = dict(record["settings"])
+    if isinstance(st["tasks"], list):
+        st["tasks"] = tuple(st["tasks"])
+    return RunSettings(**st)
+
+
+def _read_episodes(path: Path) -> dict[tuple[str, int], dict]:
+    """Finished episodes from a run's progress file; later lines win."""
+    done = {}
+    if path.exists():
+        for line in path.read_text().splitlines():
+            if line.strip():
+                e = json.loads(line)
+                done[(e["task_id"], e["trial"])] = e
+    return done
+
+
 def run_eval(
     exp: Experiment,
     settings: RunSettings = RunSettings(),
     *,
+    resume: str | None = None,  # a run id of this experiment, or "last"
     make_spec: Callable[[str, int], EpisodeSpec] | None = None,
     models: dict[str, ModelSettings | None] | None = None,
     runs_dir: Path | None = None,  # default: experiments/<name>/runs/
     echo: Callable[[str], None] = print,
 ) -> dict:
-    """Run every selected task `trials` times, score the run, write it out. Returns its results."""
+    """Run every selected task `trials` times, score the run, write it out. Returns its results.
+
+    With `resume`, reopen that run with its own settings, skip the episodes it
+    already finished, and run the rest (including ones that failed).
+    """
+    previous = None
+    if resume:
+        run_dir = find_run(exp, resume) if runs_dir is None else runs_dir / resume
+        previous = json.loads((run_dir / RESULTS_FILE).read_text())
+        if previous["status"] == "complete":
+            raise RunRefused(f"run {run_dir.name} is already complete")
+        if previous["experiment"]["version"] != exp.version:
+            raise RunRefused(f"experiments/{exp.name} changed since run {run_dir.name} started "
+                             "(prompt or skills differ); start a new run instead")
+        settings = _settings_from_record(previous)
     s = settings
-    runs_dir = runs_dir or exp.dir / RUNS_DIR
     if exp.dirty and not s.allow_dirty:
         raise RunRefused(f"experiments/{exp.name} has uncommitted changes; commit them so the result "
                          "maps to a version (or pass --allow-dirty for a throwaway run)")
     if exp.skills_dir is not None and not exp.skill_names:
         raise RunRefused(f"experiments/{exp.name}/skills has no skills yet (no */SKILL.md)")
-    task_ids = select_tasks(s.split, s.tasks, s.seed, s.final)
+    task_ids = previous["task_ids"] if previous else select_tasks(s.split, s.tasks, s.seed, s.final)
 
     if make_spec is None:
         try:
@@ -195,65 +246,82 @@ def run_eval(
                                agent=agent, user=user, judge=judge)
     models = models or {}
     public = {role: (m.public() if m else None) for role, m in models.items()}
-    model_label = _slug(models["agent"].model.split("/")[-1]) if models.get("agent") else "injected"
+    if previous and public != previous["models"]:
+        raise RunRefused(f"model settings differ from run {run_dir.name} "
+                         f"(was {previous['models']}, now {public}); start a new run instead")
 
-    started = datetime.now(timezone.utc)
-    run_id = f"{started:%Y%m%d-%H%M%S}_{exp.version[:8]}_{model_label}_{s.split}_n{s.trials}"
-    run_dir = runs_dir / run_id
-    conv_dir = run_dir / "conversations"
-    conv_dir.mkdir(parents=True, exist_ok=True)
     test_ids = set(data.splits()["test"])
     labels = load_labels()
     tasks_by_id = data.tasks_by_id()
-
-    record = {
-        "run_id": run_id,
-        "status": "running",
-        "started_at": started.isoformat(timespec="seconds"),
-        "experiment": exp.public(),
-        "scaffolding": {"git_sha": _git("rev-parse", "HEAD"),
-                        "dirty": bool(_git("status", "--porcelain", "--", "src"))},
-        "settings": {**asdict(s), "tasks": s.tasks if isinstance(s.tasks, str) else list(s.tasks)},
-        "models": public,  # agent, user simulator, judge: model, endpoint label, temperature, reasoning effort
-        "task_ids": task_ids,
-        "tau2_data_commit": TAU2_COMMIT,
-    }
+    if previous:
+        record = previous
+        record["status"] = "running"
+        record.setdefault("resumed_at", []).append(datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        run_id = record["run_id"]
+    else:
+        model_label = _slug(models["agent"].model.split("/")[-1]) if models.get("agent") else "injected"
+        started = datetime.now(timezone.utc)
+        run_id = f"{started:%Y%m%d-%H%M%S}_{exp.version[:8]}_{model_label}_{s.split}_n{s.trials}"
+        run_dir = (runs_dir or exp.dir / RUNS_DIR) / run_id
+        record = {
+            "run_id": run_id,
+            "status": "running",
+            "started_at": started.isoformat(timespec="seconds"),
+            "experiment": exp.public(),
+            "scaffolding": {"git_sha": _git("rev-parse", "HEAD"),
+                            "dirty": bool(_git("status", "--porcelain", "--", "src"))},
+            "settings": {**asdict(s), "tasks": s.tasks if isinstance(s.tasks, str) else list(s.tasks)},
+            "models": public,  # agent, user simulator, judge: model, endpoint label, temperature, reasoning effort
+            "task_ids": task_ids,
+            "tau2_data_commit": TAU2_COMMIT,
+        }
+    conv_dir = run_dir / "conversations"
+    conv_dir.mkdir(parents=True, exist_ok=True)
+    episodes_path = run_dir / EPISODES_FILE
     _write_json(run_dir / RESULTS_FILE, record)
 
-    jobs = [(tid, trial) for tid in task_ids for trial in range(s.trials)]
-    echo(f"run {exp.name}/{run_id}: {len(task_ids)} tasks x {s.trials} trials = {len(jobs)} conversations, "
-         f"{s.concurrency} at a time")
+    done = {k: e for k, e in _read_episodes(episodes_path).items() if e["ok"]}
+    all_jobs = [(tid, trial) for tid in task_ids for trial in range(s.trials)]
+    jobs = [j for j in all_jobs if j not in done]
+    echo(f"run {exp.name}/{run_id}: {len(task_ids)} tasks x {s.trials} trials = {len(all_jobs)} conversations"
+         + (f", {len(done)} already done, {len(jobs)} to run" if previous else "")
+         + f", {s.concurrency} at a time")
 
-    results: list[EpisodeResult] = []
     lock = threading.Lock()
     stop = threading.Event()
-    consecutive_failures = 0
+    state = {"consecutive_failures": 0, "ran": 0}
     t0 = time.time()
 
     def job(tid: str, trial: int) -> None:
-        nonlocal consecutive_failures
         if stop.is_set():
             return
         res = run_with_retries(make_spec, tid, trial)
         with lock:
-            results.append(res)
-            consecutive_failures = 0 if res.ok else consecutive_failures + 1
-            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+            state["ran"] += 1
+            state["consecutive_failures"] = 0 if res.ok else state["consecutive_failures"] + 1
+            if state["consecutive_failures"] >= MAX_CONSECUTIVE_FAILURES:
                 stop.set()
-            if res.ok and tid not in test_ids:  # never write test conversations (CLAUDE.md rule 1)
-                d = res.log.to_dict()
-                d["attempt_errors"] = res.attempts
-                stem = f"{tid}_t{trial}"
-                _write_json(conv_dir / f"{stem}.json", d)
-                (conv_dir / f"{stem}.md").write_text(transcript.render(d, tasks_by_id[tid]))
-            n = len(results)
+            entry = {"task_id": tid, "trial": trial, "ok": res.ok, "attempt_errors": res.attempts}
             if res.ok:
                 log = res.log
-                echo(f"[{n}/{len(jobs)}] task {tid} trial {trial}: reward {log.reward:g} "
+                entry.update(reward=log.reward, termination_reason=log.termination_reason, steps=log.steps,
+                             seconds=log.seconds, usage=log.usage)
+                done[(tid, trial)] = entry
+                if tid not in test_ids:  # never write test conversations (CLAUDE.md rule 1)
+                    d = log.to_dict()
+                    d["attempt_errors"] = res.attempts
+                    stem = f"{tid}_t{trial}"
+                    _write_json(conv_dir / f"{stem}.json", d)
+                    (conv_dir / f"{stem}.md").write_text(transcript.render(d, tasks_by_id[tid]))
+            with open(episodes_path, "a") as f:
+                f.write(json.dumps(entry, default=str) + "\n")
+            n = len(all_jobs) - len(jobs) + state["ran"]
+            if res.ok:
+                echo(f"[{n}/{len(all_jobs)}] task {tid} trial {trial}: reward {log.reward:g} "
                      f"({log.termination_reason}, {log.steps} steps, {log.seconds:.0f}s)"
                      + (f", {len(res.attempts)} retries" if res.attempts else ""))
             else:
-                echo(f"[{n}/{len(jobs)}] task {tid} trial {trial}: FAILED after {MAX_ATTEMPTS} attempts: "
+                echo(f"[{n}/{len(all_jobs)}] task {tid} trial {trial}: FAILED after {MAX_ATTEMPTS} attempts: "
                      f"{res.attempts[-1]}")
 
     if s.concurrency == 1:
@@ -264,21 +332,20 @@ def run_eval(
             for f in [pool.submit(job, tid, trial) for tid, trial in jobs]:
                 f.result()
 
-    # --- score ---
-    by_task: dict[str, list[EpisodeResult]] = {tid: [] for tid in task_ids}
-    for r in results:
-        by_task[r.task_id].append(r)
+    # --- score (everything finished so far, across resumes) ---
+    all_entries = _read_episodes(episodes_path)
     per_task = {}
     for tid in task_ids:
-        done = sorted((r for r in by_task[tid] if r.ok), key=lambda r: r.trial)
-        rewards = [r.log.reward for r in done]
+        mine = [all_entries[(tid, t)] for t in range(s.trials) if (tid, t) in all_entries]
+        ok = [e for e in mine if e["ok"]]
+        rewards = [e["reward"] for e in ok]
         per_task[tid] = {
             "split": "test" if tid in test_ids else "train",
             "successes": sum(1 for x in rewards if x == 1.0),
             "trials": len(rewards),
             "rewards": rewards,
-            "terminations": [r.log.termination_reason for r in done],
-            "infra_failures": sum(1 for r in by_task[tid] if not r.ok),
+            "terminations": [e["termination_reason"] for e in ok],
+            "infra_failures": sum(1 for e in mine if not e["ok"]),
             "labels": labels[tid]["labels"], "width": labels[tid]["width"], "depth": labels[tid]["depth"],
         }
 
@@ -292,19 +359,21 @@ def run_eval(
             {t: (p["successes"], p["trials"]) for t, p in per_task.items() if p["trials"]}, labels)
 
     usage: dict = {}
-    for r in results:
-        if r.ok:
-            for role, u in r.log.usage.items():
+    for e in all_entries.values():
+        if e["ok"]:
+            for role, u in e["usage"].items():
                 agg = usage.setdefault(role, {})
                 for k, v in u.items():
                     agg[k] = agg.get(k, 0) + v
+    completed = sum(1 for e in all_entries.values() if e["ok"])
+    remaining = len(all_jobs) - completed
     record.update({
-        "status": "aborted" if stop.is_set() else "complete",
-        "seconds": round(time.time() - t0, 1),
-        "episodes": {"planned": len(jobs), "completed": sum(r.ok for r in results),
-                     "infra_failed": sum(not r.ok for r in results),
-                     "retries": sum(len(r.attempts) for r in results if r.ok),
-                     "not_run": len(jobs) - len(results)},
+        "status": "complete" if remaining == 0 else "aborted" if stop.is_set() else "incomplete",
+        "seconds": round(record.get("seconds", 0) + time.time() - t0, 1),
+        "episodes": {"planned": len(all_jobs), "completed": completed,
+                     "infra_failed": sum(1 for e in all_entries.values() if not e["ok"]),
+                     "retries": sum(len(e["attempt_errors"]) for e in all_entries.values() if e["ok"]),
+                     "not_run": remaining},
         "usage": usage,
         "scores": scores,
         "per_task": per_task,
@@ -341,7 +410,8 @@ def summary_markdown(r: dict) -> str:
         f"- split `{st['split']}`, tasks `{st['tasks']}`, {st['trials']} trials, max steps {st['max_steps']}, "
         f"concurrency {st['concurrency']}",
         f"- status: {r['status']}; episodes {ep['completed']}/{ep['planned']} completed, "
-        f"{ep['infra_failed']} failed on infrastructure, {ep['retries']} retries; {r['seconds']:.0f}s",
+        f"{ep['infra_failed']} failed on infrastructure, {ep['retries']} retries, {ep['not_run']} not run; "
+        f"{r['seconds']:.0f}s" + (f"; resumed {len(r['resumed_at'])}x" if r.get("resumed_at") else ""),
         "",
     ]
     ks = [k for k in metrics.KS if k <= st["trials"]]

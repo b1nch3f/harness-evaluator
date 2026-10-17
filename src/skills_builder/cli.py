@@ -73,6 +73,8 @@ def eval_(
     max_steps: int = typer.Option(100, help="step limit per conversation"),
     final: bool = typer.Option(False, "--final", help="allow test tasks (only when the owner asks)"),
     allow_dirty: bool = typer.Option(False, "--allow-dirty", help="run with uncommitted experiment changes"),
+    resume: str = typer.Option(None, help="continue an unfinished run: its run id, or 'last'. "
+                                          "Uses that run's own settings; other flags are ignored."),
 ) -> None:
     """Run an experiment and evaluate it. Results go to experiments/<name>/runs/<run_id>/."""
     from skills_builder.config import REPO_ROOT
@@ -84,7 +86,7 @@ def eval_(
         settings = RunSettings(agent=agent, model=model, temperature=temperature, reasoning_effort=reasoning_effort,
                                split=split, trials=trials, tasks=task_sel, seed=seed, concurrency=concurrency,
                                max_steps=max_steps, final=final, allow_dirty=allow_dirty)
-        record = run_eval(load_experiment(experiment), settings, echo=typer.echo)
+        record = run_eval(load_experiment(experiment), settings, resume=resume, echo=typer.echo)
     except RunRefused as e:
         typer.echo(f"refused: {e}")
         raise typer.Exit(2)
@@ -92,7 +94,9 @@ def eval_(
     typer.echo((REPO_ROOT / record["run_dir"] / "summary.md").read_text())
     typer.echo(f"run saved in {record['run_dir']}/ (results.json, summary.md, conversations/)")
     if record["status"] != "complete":
-        typer.echo("run aborted after repeated failures; `sb results` skips it")
+        why = "stopped after repeated failures" if record["status"] == "aborted" else "has unfinished conversations"
+        typer.echo(f"run {why} ({record['episodes']['not_run']} left); `sb results` skips it until done.\n"
+                   f"continue with: uv run sb eval {experiment} --resume {record['run_id']}")
         raise typer.Exit(1)
 
 

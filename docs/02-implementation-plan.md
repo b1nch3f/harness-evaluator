@@ -65,15 +65,18 @@ The harness is **ADK-native**: the retail environment, the simulated user and th
 uv run sb eval <experiment> [--agent AGENT] [--model M] [--temperature T] [--reasoning-effort E]
                             [--split train|test|all] [--trials 4] [--tasks all|half:authoring|half:scoring|0,5,12]
                             [--seed S] [--concurrency 1] [--max-steps 100] [--final] [--allow-dirty]
+uv run sb eval <experiment> --resume <run_id>|last
 ```
 
 - Every setting is a flag with a default; an experiment folder holds only its harness, so the same experiment runs with any model or settings.
 - One conversation at a time unless `--concurrency` > 1 (then a thread pool, one event loop and database per episode).
 - Refuses: test tasks without `--final`; an experiment folder with uncommitted changes (unless `--allow-dirty`); a skills folder with no skills.
-- Retries an episode on exceptions (transport errors, unparseable judge replies), up to 3 attempts, and records them; a low reward is never retried. Five consecutive failed episodes abort the run.
+- Retries an episode on exceptions (transport errors, unparseable judge replies), up to 3 attempts, and records them; a low reward is never retried. Five consecutive failed episodes abort the run (for example when endpoint credits run out).
+- **Resume:** every finished episode is appended to the run's `episodes.jsonl` (task, trial, reward, ending, usage; no conversation text). `--resume <run_id>` (or `last`, the newest unfinished run) reopens the run with its own settings, skips finished episodes, reruns the rest, and rescores the whole run. It refuses if the experiment's prompt or skills, or the model settings, changed since the run started. Ctrl-C'd runs resume the same way.
 - Each run is self-contained in `experiments/<name>/runs/<run_id>/` (git-ignored):
   - `results.json`: settings, experiment version and hashes, models (CLAUDE.md rule 8), status, episode counts, token usage, scores per split (pass@k and pass^k for k = 1, 2, 4, 8 with bootstrap CIs; per intent, width and depth), per-task rewards and endings. Written at the start (`status: running`) and completed at the end.
   - `summary.md`: the same, readable.
+  - `episodes.jsonl`: progress, one line per finished episode.
   - `conversations/<task>_t<trial>.json` + `.md` for every **train** episode. Test conversations are not written.
 - `run_id` = `<UTC time>_<version[:8]>_<agent model>_<split>_n<trials>`.
 - `sb results` lists completed runs of every experiment (from each run's `results.json`); `sb experiments` lists experiments and versions.
