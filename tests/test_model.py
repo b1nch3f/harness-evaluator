@@ -23,3 +23,18 @@ def test_public_settings_have_no_key():
 
 def test_endpoint_label_drops_credentials():
     assert endpoint_label("https://user:pw@host.example/v1?key=x") == "host.example/v1"
+
+
+def test_optional_sampling_settings_reach_litellm(monkeypatch):
+    from test_bench.model import REQUEST_TIMEOUT_S, agent_settings, completion_kwargs
+
+    for k, v in {"X_MODEL": "openai/m", "X_API_BASE": "https://h.example/v1", "X_API_KEY": "k",
+                 "X_TOP_P": "0.95", "X_MAX_TOKENS": "16384", "X_TIMEOUT": "300"}.items():
+        monkeypatch.setenv(k, v)
+    s = agent_settings("X")
+    kw = completion_kwargs(s)
+    assert (kw["top_p"], kw["max_tokens"], kw["timeout"]) == (0.95, 16384, 300)
+    assert s.public()["top_p"] == 0.95 and "api_key" not in s.public()
+    monkeypatch.delenv("X_TOP_P"), monkeypatch.delenv("X_MAX_TOKENS"), monkeypatch.delenv("X_TIMEOUT")
+    kw = completion_kwargs(agent_settings("X"))
+    assert "top_p" not in kw and "max_tokens" not in kw and kw["timeout"] == REQUEST_TIMEOUT_S

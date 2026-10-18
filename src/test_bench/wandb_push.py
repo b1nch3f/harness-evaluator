@@ -23,8 +23,7 @@ def _models(record: dict) -> dict:
         role: {
             "model": m.get("model"),
             "endpoint": _endpoint_label(m.get("api_base")),
-            "temperature": m.get("temperature"),
-            "reasoning_effort": m.get("reasoning_effort"),
+            **{k: m.get(k) for k in ("temperature", "top_p", "reasoning_effort", "max_tokens", "timeout") if k in m},
         }
         for role, m in record["models"].items()
     }

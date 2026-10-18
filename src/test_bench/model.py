@@ -18,6 +18,9 @@ class ModelSettings:
     api_key: str
     temperature: float
     reasoning_effort: str | None
+    top_p: float | None = None  # None = provider default
+    max_tokens: int | None = None  # output cap per reply; None = provider default
+    timeout: int = REQUEST_TIMEOUT_S  # seconds per request
 
     def public(self) -> dict:
         """Settings safe to log or commit (no key; api_base reduced to a label)."""
@@ -72,7 +75,18 @@ def agent_settings(profile: str = "AGENT", model: str | None = None, temperature
         api_key=_require(f"{p}_API_KEY"),
         temperature=float(temperature if temperature is not None else env(f"{p}_TEMPERATURE", "0.0")),
         reasoning_effort=effort,
+        **_sampling(p),
     )
+
+
+def _sampling(prefix: str) -> dict:
+    """Optional <PREFIX>_TOP_P, <PREFIX>_MAX_TOKENS and <PREFIX>_TIMEOUT from .env."""
+    top_p, max_tokens, timeout = env(f"{prefix}_TOP_P"), env(f"{prefix}_MAX_TOKENS"), env(f"{prefix}_TIMEOUT")
+    return {
+        "top_p": float(top_p) if top_p else None,
+        "max_tokens": int(max_tokens) if max_tokens else None,
+        "timeout": int(timeout) if timeout else REQUEST_TIMEOUT_S,
+    }
 
 
 def user_settings() -> ModelSettings:
@@ -82,6 +96,7 @@ def user_settings() -> ModelSettings:
         api_key=env("USER_API_KEY") or _require("AGENT_API_KEY"),
         temperature=float(env("USER_TEMPERATURE", "0.0")),
         reasoning_effort=_effort("USER_REASONING_EFFORT", None),
+        **_sampling("USER"),
     )
 
 
@@ -95,6 +110,7 @@ def judge_settings() -> ModelSettings:
         api_key=env("JUDGE_API_KEY") or user.api_key,
         temperature=0.0,
         reasoning_effort=_effort("JUDGE_REASONING_EFFORT", None) or user.reasoning_effort,
+        **{k: v for k, v in _sampling("JUDGE").items() if v not in (None, REQUEST_TIMEOUT_S)},
     )
 
 
@@ -108,9 +124,13 @@ def completion_kwargs(s: ModelSettings) -> dict:
         "api_base": s.api_base,
         "api_key": s.api_key,
         "temperature": s.temperature,
-        "timeout": REQUEST_TIMEOUT_S,
+        "timeout": s.timeout,
         "num_retries": NUM_RETRIES,
     }
+    if s.top_p is not None:
+        kw["top_p"] = s.top_p
+    if s.max_tokens is not None:
+        kw["max_tokens"] = s.max_tokens
     if s.reasoning_effort:
         kw["extra_body"] = {"reasoning_effort": s.reasoning_effort}
     return kw
