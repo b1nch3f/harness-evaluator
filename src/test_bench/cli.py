@@ -38,11 +38,11 @@ def labels() -> None:
 
 
 @app.command()
-def ping() -> None:
+def ping(agent: str = typer.Option("AGENT", "--agent", help=".env profile to ping, e.g. QWEN")) -> None:
     """Send one chat and one tool-call request to the agent model."""
     from test_bench.ping import main as run_ping
 
-    if not run_ping():
+    if not run_ping(agent):
         raise typer.Exit(1)
 
 

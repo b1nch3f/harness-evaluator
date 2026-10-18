@@ -37,8 +37,8 @@ def _parts(resp):
     return list(resp.content.parts) if resp and resp.content and resp.content.parts else []
 
 
-async def ping() -> bool:
-    settings = agent_settings()
+async def ping(profile: str = "AGENT") -> bool:
+    settings = agent_settings(profile)
     model = build_agent_model(settings)
     print(f"model={settings.model} endpoint={settings.public()['api_base']} "
           f"temperature={settings.temperature} reasoning_effort={settings.reasoning_effort}")
@@ -66,5 +66,5 @@ async def ping() -> bool:
     return chat_ok and tool_ok
 
 
-def main() -> bool:
-    return asyncio.run(ping())
+def main(profile: str = "AGENT") -> bool:
+    return asyncio.run(ping(profile))
