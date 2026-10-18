@@ -93,12 +93,12 @@ uv run sb eval <harness> --resume <run_id>|last
 
 **Accept:** 3 and 4 recorded as runs in `harnesses/a0-bare/runs/`, with the noise floor written into `docs/01-experiment-protocol.md`.
 
-## M7. Weights & Biases
+## M7. Weights & Biases (done)
 
-- One W&B run per eval run; project `harness-evaluator`; `config` = the run's `config.json`.
-- Log pass@k and pass^k for each k, overall and per intent, plus a per-task table.
-- Log the harness as an artifact versioned by its hash. Group runs by harness; tag with the agent model.
-- W&B is the off-machine copy of the runs' `results.json` files.
+- `sb push <harness> [--run-id ID]` sends a completed run (default: the newest) to W&B project `harness-evaluator`: one W&B run per eval run, grouped by harness, tagged with the agent model and split.
+- Overall only: two charts, pass^k vs k and pass@k vs k, with labelled axes; the values and their 95% CIs go in the run summary. No per-task or per-intent data, no transcripts, no system metrics.
+- `config` = the run's configuration (harness version and hashes, test-bench and τ² commits, models, temperatures, efforts, settings); endpoints are recorded as host only.
+- Pushing again updates the same W&B run. If that run was deleted in W&B, the next push uses `<run_id>_2`.
 
 **Accept:** two runs appear in W&B with comparable pass^k charts.
 

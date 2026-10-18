@@ -122,6 +122,24 @@ def results(harness: str = typer.Option(None, help="only this harness")) -> None
 
 
 @app.command()
+def push(
+    harness: str = typer.Argument(..., help="harness folder name under harnesses/"),
+    run_id: str = typer.Option("latest", "--run-id", help="run folder name; `latest` = newest completed run"),
+) -> None:
+    """Push a completed run's overall pass@k / pass^k and configuration to W&B (no per-task data)."""
+    from test_bench.runner import load_runs
+    from test_bench.wandb_push import push as push_run
+
+    runs = load_runs(harness=harness)
+    if run_id != "latest":
+        runs = [r for r in runs if r["run_id"] == run_id]
+    if not runs:
+        typer.echo(f"no completed run {run_id!r} for harness {harness!r}")
+        raise typer.Exit(1)
+    push_run(max(runs, key=lambda r: r["run_id"]), echo=typer.echo)
+
+
+@app.command()
 def episode(
     harness: str = typer.Argument(..., help="folder name under harnesses/"),
     task_id: str = typer.Option(..., help="tau2 retail task id (train only)"),

@@ -16,5 +16,5 @@ Build and run the experiment described in `docs/`. Follow `docs/02-implementatio
 ## Tooling
 
 - Python 3.12 (τ²-bench, used in tests, requires `>=3.12,<3.14` and imports `audioop`, removed in 3.13), managed with `uv`.
-- Run everything with `uv run ...`: `sb harnesses`, `sb eval <harness>` (`--resume last` continues an unfinished run), `sb results`, `sb episode <harness> --task-id N`.
+- Run everything with `uv run ...`: `sb harnesses`, `sb eval <harness>` (`--resume last` continues an unfinished run), `sb results`, `sb push <harness>` (overall pass@k / pass^k to W&B), `sb episode <harness> --task-id N`.
 - Tests: `uv run pytest`.
